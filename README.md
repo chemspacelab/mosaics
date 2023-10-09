@@ -1,31 +1,30 @@
-# MOSAiCS Codebase
+## mosaics
+Evolutionary Monte Carlo algorithm for optimization in chemical space.
 
-[![License Badge](https://img.shields.io/github/license/chemspacelab/mosaics)](https://github.com/chemspacelab/mosaics/blob/main/LICENSE)
-[![Issues Badge](https://img.shields.io/github/issues/chemspacelab/mosaics)](https://github.com/chemspacelab/mosaics/issues)
-[![Pull Requests Badge](https://img.shields.io/github/issues-pr/chemspacelab/mosaics)](https://github.com/chemspacelab/mosaics/pulls)
-[![Contributors Badge](https://img.shields.io/github/contributors/chemspacelab/mosaics)](https://github.com/chemspacelab/mosaics/graphs/contributors)
-[![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/dwyl/esta/issues)
+[![DOI](https://img.shields.io/badge/arXiv-2307.15563-b31b1b.svg)](https://arxiv.org/abs/2307.15563)
 
-Welcome to the MOSAiCS codebase! This repository contains a collection of scripts and modules that enable the optimization of molecular structures using the MOSAiCS algorithm. MOSAiCS stands for "Molecular Optimization by Simulated Annealing and Combinatorial Search" and is a method for exploring the chemical space to find optimized molecular structures.
+## :clipboard: Description
 
-## :microscope: Purpose and Functionalities
+MOSAiCS is an Evolutionary Monte Carlo algorithm designed for optimizing target functions over the space of organic molecules. The algorithm combines the benefits of both genetic algorithms and Monte Carlo techniques, providing a powerful tool for complex optimization tasks in applied science.
 
-The MOSAiCS codebase provides the necessary tools to perform molecular optimization runs using the MOSAiCS algorithm. The main functionalities of this codebase include:
+For more information, please read our paper ["Evolutionary Monte Carlo of QM properties in chemical space: Electrolyte design"](https://arxiv.org/abs/2307.15563) published on arXiv.
+  
+## :package: Dependencies
 
-- **Random Walk**: The code uses the `RandomWalk` module from the `mosaics` package to perform a random walk in the chemical space.
-- **Beta Choice**: The `gen_exp_beta_array` function from the `beta_choice` module is used to generate an array of beta values.
-- **RDKit Utilities**: The `rdkit_utils` module provides utilities for converting SMILES strings to EGCs and generating canonical SMILES from tp.
-- **RDKit Draw Utilities**: The `rdkit_draw_utils` module provides a function to draw a chemical graph to a file.
-- **Minimized Functions**: The `morfeus_quantity_estimates` module provides a function to define a minimized function using parameters discussed in the MOSAiCS paper for EGP*.
+MOSAiCS has the following dependencies:
+
+- numpy
+- igraph
+- sortedcontainers
+
+Additional packages are required to run some example scripts.
 
 ## :wrench: Installation
-
-To install the MOSAiCS codebase, follow these steps:
 
 1. Clone the repository:
 
    ```bash
-   git clone [https://github.com/chemspacelab/mosaics.git](https://github.com/chemspacelab/mosaics.git)
+   git clone https://github.com/chemspacelab/mosaics
    ```
 
 2. Change into the `mosaics` directory:
@@ -34,82 +33,45 @@ To install the MOSAiCS codebase, follow these steps:
    cd mosaics
    ```
 
-3. Install the package using `setuptools`:
-
+3. Install the package using `setuptools`
    ```bash
    python setup.py install
    ```
+   or `pip`
+   ```bash
+   pip install .
+   ```
 
-## :package: Dependencies
-
-The MOSAiCS codebase has the following dependencies:
-
-- RDKit
-- numpy
-- igraph
-- sortedcontainers
-
-## :computer: Examples of Usage
-
-Here is an example of how to use the MOSAiCS codebase to perform a molecular optimization run:
-
+## :toolbox: Usage
+To use the package in your Python script import it with:
 ```python
-from mosaics.random_walk import RandomWalk
-from mosaics.beta_choice import gen_exp_beta_array
-from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
-from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.minimized_functions.morfeus_quantity_estimates import LinComb_Morfeus_xTB_code
-
-# Define minimized function using parameters discussed in the MOSAiCS paper for EGP*.
-min_HOMO_LUMO_gap = 0.08895587351640835
-quant_prop_coeff = 281.71189055703087
-quantity_of_interest = "solvation_energy"
-solvent = "water"
-minimized_function = LinComb_Morfeus_xTB_code(
-    [quantity_of_interest],
-    [quant_prop_coeff],
-    constr_quants=["HOMO_LUMO_gap"],
-    cq_lower_bounds=[min_HOMO_LUMO_gap],
-    num_attempts=1,
-    num_conformers=8,
-    remaining_rho=0.9,
-    ff_type="MMFF94",
-    solvent=solvent,
-)
-
-num_saved_candidates = 40
-drw = DistributedRandomWalk(
-    betas=betas,
-    init_egc=SMILES_to_egc(init_SMILES),
-    min_function=minimized_function,
-    num_processes=NCPUs,
-    num_subpopulations=NCPUs,
-    num_internal_global_steps=500,
-    global_step_params=global_step_params,
-    greedy_delete_checked_paths=True,
-    num_saved_candidates=num_saved_candidates,
-    debug=True,
-    randomized_change_params=randomized_change_params,
-    save_logs=True,
-)
+import mosaics
 ```
 
-More can be found in the [examples](https://github.com/chemspacelab/mosaics/tree/main/examples) folder.
+## :computer: Examples
+We have prepared several examples to help you get started with MOSAiCS. Each example is located in its own directory under the `examples/` folder.
 
-## :busts_in_silhouette: Authors
+### [Toy Minimization](examples/01_toy_minimization/)
+This example shows the basics of the our algorithm by using it to minimize a function of chemical graph's nuclear charges over chemical space.
 
-The MOSAiCS codebase was developed by Anders Steen Christensen and Konstantin Karandashev.
+### [xTB Property Optimization](examples/02_xTB_property_optimization/)
+Optimize solvation energy using extended Tight-Binding (xTB) calculations with MMFF94 conformers. (Largely a reproduction of the numerical experiments performed in [arXiv:2307.15563](https://arxiv.org/abs/2307.15563).) NOTE: Requires installation of [`morfeus`](https://pypi.org/project/morfeus-ml/) and [`xtb-python`](https://xtb-python.readthedocs.io/en/latest/#) packages.
+
+### [Distributed Random Walk](examples/03_distributed_random_walk/)
+Learn to distribute computational work across multiple nodes or processors.
+
+### [Blind Optimization Protocol](examples/04_blind_optimization_protocol/)
+Learn to use protocols for tuning beta parameters during optimization.
+
+### [ChemSpaceSampler](examples/05_chemspacesampler/)
+Showcases the algorithm's ability to explore various regions of the chemical space. For further reading see ["Understanding Representations by Exploring Galaxies in Chemical Space"](https://arxiv.org/abs/2309.09194) published on arXiv.
 
 ## :handshake: Contributing
+We welcome contributions and feedback from the community. If you encounter any issues or have suggestions for improvements, please [open an issue](https://github.com/chemspacelab/mosaics/issues) on GitHub.
 
-Contributions to the MOSAiCS codebase are welcome! If you encounter any issues or have suggestions for improvements, please [open an issue](https://github.com/chemspacelab/mosaics/issues) on GitHub. 
-
-When making a pull request, please ensure that your code adheres to the existing structure and conventions of the codebase. 
+## :scroll: License
+This project is licensed under the MIT License
 
 ## :email: Support
 
-For support or questions related to the MOSAiCS codebase, please [contact the authors](mailto:authors@example.com).
-
-## :scroll: License
-
-The MOSAiCS codebase is licensed under the [MIT License](https://github.com/chemspacelab/mosaics/blob/main/LICENSE).
+For support or questions related to the MOSAiCS codebase, please [contact the authors](mailto:kvkarandashev@gmail.com).
