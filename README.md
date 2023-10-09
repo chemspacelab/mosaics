@@ -24,17 +24,17 @@ For more information, please read our paper ["Evolutionary Monte Carlo of QM pro
 ## Installation
 ```bash
 # Clone the repository
-git clone https://github.com/yourgithubusername/MOSAiCS.git
+git clone https://github.com/chemspacelab/mosaics
 
 # Navigate to the directory
-cd MOSAiCS
+cd mosaics
 
 # Install the package
 pip install .
 ```
 
 ## Usage
-To use the package in your Python script, import it like so:
+To use the package in your Python script import it with:
 ```python
 import mosaics
 ```
@@ -43,22 +43,22 @@ import mosaics
 We have prepared several examples to help you get started with MOSAiCS. Each example is located in its own directory under the `examples/` folder.
 
 ### [Toy Minimization](examples/01_toy_minimization/)
-This example shows the basics of the minimization algorithm.
+This example shows the basics of the our algorithm by using it to minimize a function of chemical graph's nuclear charges over chemical space.
 
 ### [xTB Property Optimization](examples/02_xTB_property_optimization/)
-Optimize specific properties using extended Tight-Binding (xTB) calculations.
+Optimize solvation energy using extended Tight-Binding (xTB) calculations with MMFF94 conformers. (Largely a reproduction of the numerical experiments performed in [arXiv:2307.15563](https://arxiv.org/abs/2307.15563).)
 
 ### [Distributed Random Walk](examples/03_distributed_random_walk/)
 Learn to distribute computational work across multiple nodes or processors.
 
 ### [Blind Optimization Protocol](examples/04_blind_optimization_protocol/)
-Demonstrates advanced optimization methods without relying on all typical variables.
+Learn to use protocols for tuning beta parameters during optimization.
 
 ### [ChemSpaceSampler](examples/05_chemspacesampler/)
-Showcases the algorithm's ability to explore various regions of the chemical space.
+Showcases the algorithm's ability to explore various regions of the chemical space. For further reading see ["Understanding Representations by Exploring Galaxies in Chemical Space"](https://arxiv.org/abs/2309.09194) published on arXiv.
 
 ## Contributing
-We welcome contributions from the community.
+We welcome contributions and feedback from the community.
 
 ## License
 This project is licensed under the MIT License
