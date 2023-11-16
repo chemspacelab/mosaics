@@ -54,9 +54,9 @@ randomized_change_params = {
     "not_protonated": not_protonated,
 }
 global_step_params = {
-    "num_parallel_tempering_tries": 64,
-    "num_genetic_tries": 16,
-    "prob_dict": {"simple": 0.5, "genetic": 0.25, "tempering": 0.25},
+    "num_parallel_tempering_attempts": 64,
+    "num_crossover_attempts": 16,
+    "prob_dict": {"simple": 0.5, "crossover": 0.25, "tempering": 0.25},
 }
 
 
@@ -84,7 +84,7 @@ drw = DistributedRandomWalk(
     min_function=minimized_function,
     num_processes=NCPUs,
     num_subpopulations=NCPUs,
-    num_internal_global_steps=500,
+    num_internal_global_steps=100,
     global_step_params=global_step_params,
     greedy_delete_checked_paths=True,
     num_saved_candidates=num_saved_candidates,

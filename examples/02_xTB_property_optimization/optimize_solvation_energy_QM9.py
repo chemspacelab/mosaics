@@ -61,9 +61,9 @@ randomized_change_params = {
     "added_bond_orders": [1, 2, 3],
 }
 global_change_params = {
-    "num_parallel_tempering_tries": 128,
-    "num_genetic_tries": 32,
-    "prob_dict": {"simple": 0.6, "genetic": 0.2, "tempering": 0.2},
+    "num_parallel_tempering_attempts": 128,
+    "num_crossover_attempts": 32,
+    "prob_dict": {"simple": 0.6, "crossover": 0.2, "tempering": 0.2},
 }
 
 rw = RandomWalk(

@@ -2,12 +2,13 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem.rdmolops import GetAdjacencyMatrix
 from rdkit.Chem.rdmolfiles import MolToSmiles
-from .misc_procedures import int_atom_checked
+from .misc_procedures import int_atom_checked, VERBOSITY, VERBOSITY_MUTED
 from .valence_treatment import (
     ChemGraph,
     default_valence,
     canonically_permuted_ChemGraph,
     str2ChemGraph,
+    split_chemgraph_into_connected_fragments,
 )
 from .ext_graph_compound import ExtGraphCompound
 import copy
@@ -179,10 +180,25 @@ def chemgraph_to_rdkit(
         return mol
 
 
-def chemgraph_to_canonical_rdkit(cg, SMILES_only=False):
+from .test_utils import print_to_separate_file_wprefix
+
+
+def chemgraph_to_canonical_rdkit(
+    cg: ChemGraph,
+    SMILES_only=False,
+    print_all_SMILES_prefix=None,
+    print_all_SMILES_suffix=".txt",
+):
     canon_cg = canonically_permuted_ChemGraph(cg)
 
     canon_rdkit, canon_SMILES = chemgraph_to_rdkit(canon_cg, include_SMILES=True)
+
+    if print_all_SMILES_prefix is not None:
+        print_to_separate_file_wprefix(
+            canon_SMILES,
+            print_all_SMILES_prefix,
+            print_file_suffix=print_all_SMILES_suffix,
+        )
 
     if SMILES_only:
         return canon_SMILES
@@ -207,7 +223,8 @@ def RDKit_FF_optimize_coords(
     try:
         AllChem.EmbedMolecule(mol)
     except:
-        print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
+        if VERBOSITY != VERBOSITY_MUTED:
+            print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
         raise FFInconsistent
     for _ in range(num_attempts):
         try:
@@ -241,7 +258,9 @@ def RDKit_FF_min_en_conf(mol, ff_type, num_attempts=1, corresponding_cg=None):
         try:
             AllChem.EmbedMolecule(cur_mol, randomSeed=seed)
         except:
-            print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
+            if VERBOSITY != VERBOSITY_MUTED:
+                print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
+            raise RdKitFailure
 
         args = (cur_mol,)
 
@@ -338,3 +357,24 @@ def ChemGraphStr_to_SMILES(chemgraph_str):
 
 def canonical_SMILES_from_tp(tp):
     return chemgraph_to_canonical_rdkit(tp.egc.chemgraph, SMILES_only=True)
+
+
+def canonical_connected_rdkit_list_from_tp(tp, SMILES_only=False):
+    """
+    Returns rdkit (with SMILES) of all connected fragments.
+    """
+    connected_chemgraphs = split_chemgraph_into_connected_fragments(tp.egc.chemgraph)
+    return [
+        chemgraph_to_canonical_rdkit(cg, SMILES_only=SMILES_only)
+        for cg in connected_chemgraphs
+    ]
+
+
+def canonical_connected_SMILES_list_from_tp(tp):
+    """
+    Returns SMILES of all connected fragments.
+    """
+    return canonical_connected_rdkit_list_from_tp(tp, SMILES_only=True)
+
+
+# Added for testing prurposes.

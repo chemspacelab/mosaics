@@ -44,9 +44,10 @@ class OptimizationProtocol:
         init_egcs=None,
         init_egc=None,
         saved_candidates_max_difference=None,
-        num_saved_candidates=1,
+        num_saved_candidates=None,
         terminated_worker_max_restart_number=0,
         terminated_worker_num_extra_rng_calls=1,
+        debug=False,
     ):
         """
         A very basic protocol for optimizing beta parameters during the simulation.
@@ -96,6 +97,7 @@ class OptimizationProtocol:
         self.terminated_worker_num_extra_rng_calls = (
             terminated_worker_num_extra_rng_calls
         )
+        self.debug = debug
         self.init_random_walk(
             init_egc=init_egc,
             init_egcs=init_egcs,
@@ -216,6 +218,7 @@ class OptimizationProtocol:
                 save_logs=self.save_random_walk_logs,
                 terminated_worker_max_restart_number=self.terminated_worker_max_restart_number,
                 terminated_worker_num_extra_rng_calls=self.terminated_worker_num_extra_rng_calls,
+                debug=self.debug,
             )
         else:
             raise Exception("Using non-distributed random walks not implemented yet.")

@@ -1,4 +1,10 @@
-from .valence_treatment import ChemGraph, sorted_by_membership
+from .valence_treatment import ChemGraph
+from .misc_procedures import (
+    sorted_tuple,
+    sorted_by_membership,
+    int_atom_checked,
+    intlog,
+)
 from .data import NUCLEAR_CHARGE
 import numpy as np
 
@@ -41,9 +47,16 @@ class ExtGraphCompound:
         self.init_imported_chemgraph_mapping()
         # Create nuclear_charges and adjacency_matrix consistent with chemgraph.
         self.nuclear_charges = self.chemgraph.full_ncharges()
-        self.adjacency_matrix = self.chemgraph.full_adjmat()
+        self.adjacency_matrix = (
+            None  # Done to not initialize anything non-linear scaling without need.
+        )
         # In case we want to attach more data to the same entry.
         self.additional_data = additional_data
+
+    def get_adjacency_matrix(self):
+        if self.adjacency_matrix is None:
+            self.adjacency_matrix = self.chemgraph.full_adjmat()
+        return self.adjacency_matrix
 
     def original_hydrogen_hatom(self, hydrogen_id):
         adj_mat_row = self.original_adjacency_matrix[hydrogen_id]
@@ -199,3 +212,149 @@ class ExtGraphCompound:
 
     def __repr__(self):
         return str(self)
+
+
+# For checking that ExtGraphCompound objects satisfy constraints of the chemical space.
+def connection_forbidden(nc1, nc2, forbidden_bonds):
+    if (nc1 is None) or (nc2 is None) or (forbidden_bonds is None):
+        return False
+    nc_tuple = sorted_tuple(int_atom_checked(nc1), int_atom_checked(nc2))
+    return nc_tuple in forbidden_bonds
+
+
+def no_forbidden_bonds(egc, forbidden_bonds: None or list = None):
+    """
+    Check that an ExtGraphCompound or ChemGraph object has no covalent bonds whose nuclear charge tuple is inside forbidden_bonds.
+    egc : checked ExtGraphCompound object
+    forbidden_bonds : list of sorted nuclear charge tuples.
+    """
+    if forbidden_bonds is not None:
+        if isinstance(egc, ChemGraph):
+            cg = egc
+        else:
+            cg = egc.chemgraph
+        hatoms = cg.hatoms
+        for bond_tuple in cg.bond_orders.keys():
+            if connection_forbidden(
+                hatoms[bond_tuple[0]].ncharge,
+                hatoms[bond_tuple[1]].ncharge,
+                forbidden_bonds=forbidden_bonds,
+            ):
+                return False
+    return True
+
+
+def egc_valid_wrt_change_params(
+    egc,
+    nhatoms_range=None,
+    forbidden_bonds=None,
+    possible_elements=None,
+    not_protonated=None,
+    max_fragment_num=None,
+    **other_kwargs,
+):
+    """
+    Check that an ExtGraphCompound or ChemGraph object is a member of chemical subspace spanned by change params used throughout chemxpl.modify module.
+    egc : ExtGraphCompound object
+    nhatoms_range : range of possible numbers of heavy atoms
+    forbidden_bonds : ordered tuples of nuclear charges corresponding to elements that are forbidden to have bonds.
+    """
+    if isinstance(egc, ChemGraph):
+        cg = egc
+    else:
+        cg = egc.chemgraph
+    if not no_forbidden_bonds(cg, forbidden_bonds=forbidden_bonds):
+        return False
+    if not_protonated is not None:
+        for ha in cg.hatoms:
+            if (ha.ncharge in not_protonated) and (ha.nhydrogens != 0):
+                return False
+    if nhatoms_range is not None:
+        nhas = cg.nhatoms()
+        if (nhas < nhatoms_range[0]) or (nhas > nhatoms_range[1]):
+            return False
+    if possible_elements is not None:
+        possible_elements_nc = [int_atom_checked(pe) for pe in possible_elements]
+        for ha in cg.hatoms:
+            if ha.ncharge not in possible_elements_nc:
+                return False
+    if max_fragment_num is not None:
+        if egc.chemgraph.num_connected() > max_fragment_num:
+            return False
+    return True
+
+
+# Appears in several functions for modifying ExtGraphCompound objects.
+def atom_res_struct_to_atoms(atom_res_struct_list):
+    # TODO check whether atom_res_struct_list is always ordered? Should be that way!
+    atom_list = []
+    for atom_res_struct_tuple in atom_res_struct_list:
+        atom_id = atom_res_struct_tuple[0]
+        if atom_id not in atom_list:
+            atom_list.append(atom_id)
+    return atom_list
+
+
+def atom_multiplicity_in_list(
+    egc: ExtGraphCompound,
+    atom_id: int,
+    atom_id_list=None,
+    special_atom_id=None,
+    save_equivalence_data=False,
+    **other_kwargs,
+):
+    count = 0
+    if isinstance(egc, ExtGraphCompound):
+        cg = egc.chemgraph
+    else:
+        cg = egc
+    if atom_id_list is None:
+        used_atom_id_list = range(cg.nhatoms())
+    else:
+        if isinstance(atom_id_list[0], tuple):
+            used_atom_id_list = atom_res_struct_to_atoms(atom_id_list)
+        else:
+            used_atom_id_list = atom_id_list
+    if special_atom_id is None:
+        compared_atom_tuple = (atom_id,)
+    else:
+        compared_atom_tuple = (atom_id, special_atom_id)
+    for other_atom_id in used_atom_id_list:
+        if special_atom_id is None:
+            other_atom_tuple = (other_atom_id,)
+        else:
+            other_atom_tuple = (other_atom_id, special_atom_id)
+        if other_atom_id == atom_id:
+            are_equivalent = True
+        else:
+            if save_equivalence_data:
+                are_equivalent = cg.atom_sets_equivalent(
+                    compared_atom_tuple, other_atom_tuple
+                )
+            else:
+                are_equivalent = cg.uninit_atom_sets_equivalent_wcolor_check(
+                    compared_atom_tuple, other_atom_tuple
+                )
+        if are_equivalent:
+            count += 1
+    return count
+
+
+def log_atom_multiplicity_in_list(
+    egc: ExtGraphCompound,
+    atom_id: int,
+    atom_id_list: list,
+    special_atom_id=None,
+    save_equivalence_data=False,
+    **other_kwargs,
+):
+    return intlog(
+        atom_multiplicity_in_list(
+            egc,
+            atom_id,
+            atom_id_list,
+            special_atom_id=special_atom_id,
+            save_equivalence_data=save_equivalence_data,
+            **other_kwargs,
+        )
+    )

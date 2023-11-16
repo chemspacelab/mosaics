@@ -19,7 +19,7 @@ from .modify import (
     change_bond_order_valence,
     frag_size_status_list,
     matching_frag_size_status_list,
-    cross_couple_outcomes,
+    crossover_outcomes,
 )
 from .random_walk import (
     TrajectoryPoint,
@@ -755,7 +755,7 @@ def draw_all_possible_fragment_pairs(
             )
 
 
-def draw_all_cross_couplings(
+def draw_all_crossovers(
     cg_pair,
     init_folder_prefix="init_opt_",
     filename_prefixes=["old_", "new_"],
@@ -795,7 +795,7 @@ def draw_all_cross_couplings(
                     **other_kwargs
                 )
             trial_option = 0
-            new_cg_pairs, new_origin_points = cross_couple_outcomes(
+            new_cg_pairs, new_origin_points = crossover_outcomes(
                 cg_pair, chosen_sizes, origin_points
             )
             if new_cg_pairs is None:

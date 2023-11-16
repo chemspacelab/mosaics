@@ -250,9 +250,13 @@ def mktmpdir():
     return mktmp(True)
 
 
-def mkdir(dir_name):
-    subprocess.run(["mkdir", "-p", dir_name])
+def run(*cmd):
+    subprocess.run(list(cmd))
+
+
+def mkdir(dirname):
+    run("mkdir", "-p", dirname)
 
 
 def rmdir(dirname):
-    subprocess.run(["rm", "-Rf", dirname])
+    run("rm", "-Rf", dirname)

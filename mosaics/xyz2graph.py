@@ -7,6 +7,8 @@ from .misc_procedures import (
     int_atom_checked,
     default_num_procs,
     default_parallel_backend,
+    VERBOSITY,
+    VERBOSITY_MUTED,
 )
 from rdkit import Chem
 from .valence_treatment import InvalidAdjMat, ChemGraph
@@ -45,7 +47,13 @@ def xyz_list2mols_extgraph(xyz_file_list, leave_nones=False, xyz_to_add_data=Fal
     output = []
     for egc_id, (egc, xyz_name) in enumerate(zip(unfiltered_list, xyz_file_list)):
         if egc is None:
-            print("WARNING, failed to create EGC for id", egc_id, "xyz name:", xyz_name)
+            if VERBOSITY != VERBOSITY_MUTED:
+                print(
+                    "WARNING, failed to create EGC for id",
+                    egc_id,
+                    "xyz name:",
+                    xyz_name,
+                )
         else:
             if xyz_to_add_data:
                 egc.additional_data["xyz"] = xyz_name
