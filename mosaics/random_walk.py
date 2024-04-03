@@ -10,22 +10,45 @@
 
 # TODO separate MC_step counters for different MC move types?
 
-from sortedcontainers import SortedList, SortedDict
-from .modify import *
-from .ext_graph_compound import egc_valid_wrt_change_params
-from .utils import dump2pkl, loadpkl, pkl_compress_ending
-from .valence_treatment import (
-    sorted_tuple,
-    int_atom_checked,
-    default_valence,
-)
-from .misc_procedures import VERBOSITY, VERBOSITY_MUTED
-from .trajectory_analysis import *
-import random, os, operator
+import operator
+import os
+import random
 from copy import deepcopy
+from types import FunctionType
+from typing import Union
+
 import numpy as np
 from scipy.special import expit
-from types import FunctionType
+from sortedcontainers import SortedDict, SortedList
+
+from .crossover import randomized_crossover
+from .elementary_mutations import (
+    add_heavy_atom_chain,
+    available_added_atom_bos,
+    change_valence,
+    gen_atom_removal_possible_hnums,
+    gen_val_change_pos_ncharges,
+    remove_heavy_atom,
+)
+from .ext_graph_compound import egc_valid_wrt_change_params
+from .misc_procedures import VERBOSITY, VERBOSITY_MUTED
+from .modify import (
+    TrajectoryPoint,
+    full_change_list,
+    global_step_traj_storage_label,
+    inverse_procedure,
+    nonglobal_step_traj_storage_label,
+    randomized_change,
+)
+from .trajectory_analysis import ordered_trajectory, ordered_trajectory_ids
+from .utils import dump2pkl, loadpkl, pkl_compress_ending
+from .valence_treatment import (
+    InvalidChange,
+    default_valence,
+    int_atom_checked,
+    sorted_tuple,
+    str2ChemGraph,
+)
 
 default_minfunc_name = "MIN_FUNC_NAME"
 
@@ -83,9 +106,7 @@ def maintain_sorted_CandidateCompound_list(
     """
     A subroutine shared between RandomWalk and DistributedRandomWalk objects for maintaining their saved CandidateCompound lists.
     """
-    if (obj.num_saved_candidates is None) and (
-        obj.saved_candidates_max_difference is None
-    ):
+    if (obj.num_saved_candidates is None) and (obj.saved_candidates_max_difference is None):
         return
     if candidate is not None:
         min_func_val = candidate.func_val
@@ -94,9 +115,7 @@ def maintain_sorted_CandidateCompound_list(
         return
 
     if candidate is None:
-        candidate = CandidateCompound(
-            tp=deepcopy(trajectory_point), func_val=min_func_val
-        )
+        candidate = CandidateCompound(tp=deepcopy(trajectory_point), func_val=min_func_val)
 
     if (obj.num_saved_candidates is not None) and (
         len(obj.saved_candidates) >= obj.num_saved_candidates
@@ -127,9 +146,7 @@ def maintain_sorted_CandidateCompound_list(
     if obj.saved_candidates_max_difference is not None:
         if new_lower_minfunc_bound is not None:
             # Delete tail candidates with too large minimized function values.
-            new_upper_bound = (
-                new_lower_minfunc_bound + obj.saved_candidates_max_difference
-            )
+            new_upper_bound = new_lower_minfunc_bound + obj.saved_candidates_max_difference
             deleted_indices_bound = None
             for i, cand in enumerate(obj.saved_candidates):
                 if cand.func_val > new_upper_bound:
@@ -165,15 +182,11 @@ class SoftExitCalled(Exception):
     Exception raised by RandomWalk object if soft exit request is passed.
     """
 
-    pass
-
 
 class InvalidStartingMolecules(Exception):
     """
     Exception raised by RandomWalk object if it is initialized with starting molecules that do not fit the parameters for random change.
     """
-
-    pass
 
 
 # TODO: The expression appears in distributed_random_walk once, but not in RandomWalk class itself, the latter using alternative expression.
@@ -396,9 +409,7 @@ class RandomWalk:
             # used_randomized_change_params contains randomized_change_params as well as some temporary data to optimize code's performance.
             self.used_randomized_change_params = deepcopy(self.randomized_change_params)
             if "forbidden_bonds" in self.used_randomized_change_params:
-                self.used_randomized_change_params[
-                    "forbidden_bonds"
-                ] = tidy_forbidden_bonds(
+                self.used_randomized_change_params["forbidden_bonds"] = tidy_forbidden_bonds(
                     self.used_randomized_change_params["forbidden_bonds"]
                 )
 
@@ -427,16 +438,11 @@ class RandomWalk:
             cur_change_dict = self.used_randomized_change_params["change_prob_dict"]
 
             # Initialize some auxiliary arguments that allow the code to run just a little faster.
-            cur_added_bond_orders = self.used_randomized_change_params[
-                "added_bond_orders"
-            ]
+            cur_added_bond_orders = self.used_randomized_change_params["added_bond_orders"]
             cur_not_protonated = self.used_randomized_change_params["not_protonated"]
-            cur_possible_elements = self.used_randomized_change_params[
-                "possible_elements"
-            ]
+            cur_possible_elements = self.used_randomized_change_params["possible_elements"]
             cur_possible_ncharges = [
-                int_atom_checked(possible_element)
-                for possible_element in cur_possible_elements
+                int_atom_checked(possible_element) for possible_element in cur_possible_elements
             ]
             cur_default_valences = {}
             for ncharge in cur_possible_ncharges:
@@ -458,29 +464,21 @@ class RandomWalk:
                         cur_change_dict.append(inv_change_func)
 
             # Initialize some auxiliary arguments that allow the code to run just a little faster.
-            self.used_randomized_change_params[
-                "possible_ncharges"
-            ] = cur_possible_ncharges
-            self.used_randomized_change_params[
-                "default_valences"
-            ] = cur_default_valences
+            self.used_randomized_change_params["possible_ncharges"] = cur_possible_ncharges
+            self.used_randomized_change_params["default_valences"] = cur_default_valences
 
-            if (add_heavy_atom_chain in cur_change_dict) or (
-                remove_heavy_atom in cur_change_dict
-            ):
+            if (add_heavy_atom_chain in cur_change_dict) or (remove_heavy_atom in cur_change_dict):
                 avail_added_bond_orders = {}
                 atom_removal_possible_hnums = {}
-                for ncharge, def_val in zip(
-                    cur_possible_ncharges, cur_default_valences.values()
-                ):
+                for ncharge, def_val in zip(cur_possible_ncharges, cur_default_valences.values()):
                     avail_added_bond_orders[ncharge] = available_added_atom_bos(
                         ncharge,
                         cur_added_bond_orders,
                         not_protonated=cur_not_protonated,
                     )
-                    atom_removal_possible_hnums[
-                        ncharge
-                    ] = gen_atom_removal_possible_hnums(cur_added_bond_orders, def_val)
+                    atom_removal_possible_hnums[ncharge] = gen_atom_removal_possible_hnums(
+                        cur_added_bond_orders, def_val
+                    )
                 self.used_randomized_change_params_check_defaults(
                     avail_added_bond_orders=avail_added_bond_orders,
                     atom_removal_possible_hnums=atom_removal_possible_hnums,
@@ -590,14 +588,12 @@ class RandomWalk:
                 raise InvalidChange
 
     def acceptance_rule(self, new_tps, prob_balance, replica_ids=[0]):
-
         if self.no_exploration:
             for new_tp in new_tps:
                 if new_tp not in self.restricted_tps:
                     return False
         new_tot_pot_vals = [
-            self.tot_pot(new_tp, replica_id)
-            for new_tp, replica_id in zip(new_tps, replica_ids)
+            self.tot_pot(new_tp, replica_id) for new_tp, replica_id in zip(new_tps, replica_ids)
         ]
 
         # Check we have not created any invalid molecules.
@@ -605,8 +601,7 @@ class RandomWalk:
             return False
 
         prev_tot_pot_vals = [
-            self.tot_pot(self.cur_tps[replica_id], replica_id)
-            for replica_id in replica_ids
+            self.tot_pot(self.cur_tps[replica_id], replica_id) for replica_id in replica_ids
         ]
 
         if (self.betas is not None) and self.virtual_beta_present(replica_ids):
@@ -678,15 +673,11 @@ class RandomWalk:
         output = 0
         if self.hydrogen_nums is not None:
             if egc.chemgraph.tot_nhydrogens() != self.hydrogen_nums[replica_id]:
-                output += abs(
-                    egc.chemgraph.tot_nhydrogens() - self.hydrogen_nums[replica_id]
-                )
+                output += abs(egc.chemgraph.tot_nhydrogens() - self.hydrogen_nums[replica_id])
         if egc.chemgraph.num_connected != 1:
             output += egc.chemgraph.num_connected() - 1
         if "final_nhatoms_range" in self.used_randomized_change_params:
-            final_nhatoms_range = self.used_randomized_change_params[
-                "final_nhatoms_range"
-            ]
+            final_nhatoms_range = self.used_randomized_change_params["final_nhatoms_range"]
             if egc.num_heavy_atoms() > final_nhatoms_range[1]:
                 output += egc.num_heavy_atoms() - final_nhatoms_range[1]
             else:
@@ -717,17 +708,14 @@ class RandomWalk:
         if None in cur_tot_pot_vals:
             return None
         switched_tot_pot_vals = [
-            self.tot_pot(tp, replica_id)
-            for tp, replica_id in zip(tp_pair, replica_ids[::-1])
+            self.tot_pot(tp, replica_id) for tp, replica_id in zip(tp_pair, replica_ids[::-1])
         ]  # The reason we don't just switch cur_tot_pot_vals is to account for potential change of biasing potential between replicas.
         if self.virtual_beta_present(replica_ids):
             if all(self.virtual_beta_ids(replica_ids)):
                 return 0.5
             else:
                 cur_virt_min = self.min_over_virtual(cur_tot_pot_vals, replica_ids)
-                switched_virt_min = self.min_over_virtual(
-                    switched_tot_pot_vals, replica_ids
-                )
+                switched_virt_min = self.min_over_virtual(switched_tot_pot_vals, replica_ids)
                 if cur_virt_min == switched_virt_min:
                     return 0.5
                 if cur_virt_min < switched_virt_min:
@@ -759,9 +747,7 @@ class RandomWalk:
         self.num_valid_simple_moves += 1
 
         new_tp = self.hist_checked_tp(new_tp)
-        accepted = self.accept_reject_move(
-            [new_tp], prob_balance, replica_ids=[replica_id]
-        )
+        accepted = self.accept_reject_move([new_tp], prob_balance, replica_ids=[replica_id])
         if accepted:
             self.num_accepted_simple_moves += 1
 
@@ -771,13 +757,9 @@ class RandomWalk:
         """
         Trial move part of the crossover step.
         """
-        old_cg_pair = [
-            self.cur_tps[replica_id].egc.chemgraph for replica_id in replica_ids
-        ]
+        old_cg_pair = [self.cur_tps[replica_id].egc.chemgraph for replica_id in replica_ids]
         new_cg_pair, prob_balance = randomized_crossover(
-            old_cg_pair,
-            visited_tp_list=self.histogram,
-            **self.used_randomized_change_params
+            old_cg_pair, visited_tp_list=self.histogram, **self.used_randomized_change_params
         )
         if new_cg_pair is None:
             return None, None
@@ -788,9 +770,7 @@ class RandomWalk:
             [TrajectoryPoint(cg=new_cg) for new_cg in new_cg_pair]
         )
         if self.betas is not None:
-            new_pair_shuffle_prob = self.tp_pair_order_prob(
-                replica_ids, tp_pair=new_pair_tps
-            )
+            new_pair_shuffle_prob = self.tp_pair_order_prob(replica_ids, tp_pair=new_pair_tps)
             if new_pair_shuffle_prob is None:  # a minimized function value is invalid
                 return None, None
             if random.random() > new_pair_shuffle_prob:  # shuffle
@@ -813,9 +793,7 @@ class RandomWalk:
 
         self.num_valid_crossovers += 1
 
-        accepted = self.accept_reject_move(
-            new_pair_tps, prob_balance, replica_ids=replica_ids
-        )
+        accepted = self.accept_reject_move(new_pair_tps, prob_balance, replica_ids=replica_ids)
         if accepted:
             self.num_accepted_crossovers += 1
         return accepted
@@ -833,9 +811,7 @@ class RandomWalk:
     def crossover_MC_step_all(
         self, num_crossover_attempts=1, randomized_change_params=None, **dummy_kwargs
     ):
-        self.init_randomized_change_params(
-            randomized_change_params=randomized_change_params
-        )
+        self.init_randomized_change_params(randomized_change_params=randomized_change_params)
         for _ in range(num_crossover_attempts):
             changed_replica_ids = self.random_changed_replica_pair()
             # The swap before is to avoid situations where the pair's
@@ -849,9 +825,7 @@ class RandomWalk:
         self.num_attempted_tempering_swaps += 1
 
         trial_tps = [self.cur_tps[replica_ids[1]], self.cur_tps[replica_ids[0]]]
-        accepted = self.accept_reject_move(
-            trial_tps, 0.0, replica_ids=replica_ids, swap=True
-        )
+        accepted = self.accept_reject_move(trial_tps, 0.0, replica_ids=replica_ids, swap=True)
         if accepted:
             self.num_accepted_tempering_swaps += 1
 
@@ -874,16 +848,11 @@ class RandomWalk:
         }
 
     def global_random_change(
-        self,
-        prob_dict={"simple": 0.5, "crossover": 0.25, "tempering": 0.25},
-        **other_kwargs
+        self, prob_dict={"simple": 0.5, "crossover": 0.25, "tempering": 0.25}, **other_kwargs
     ):
-
         self.global_MC_step_counter += 1
 
-        cur_procedure = random.choices(
-            list(prob_dict), weights=list(prob_dict.values())
-        )[0]
+        cur_procedure = random.choices(list(prob_dict), weights=list(prob_dict.values()))[0]
         global_change_dict = self.global_change_dict()
         if cur_procedure in global_change_dict:
             global_change_dict[cur_procedure](**other_kwargs)
@@ -929,9 +898,7 @@ class RandomWalk:
             tp_in_histogram = tp in self.histogram
             if tp_in_histogram:
                 tp_index = self.histogram.index(tp)
-                tp.copy_extra_data_to(
-                    self.histogram[tp_index], omit_data=self.delete_temp_data
-                )
+                tp.copy_extra_data_to(self.histogram[tp_index], omit_data=self.delete_temp_data)
                 # TODO make an update call info procedure?
                 self.histogram[
                     tp_index
@@ -991,9 +958,7 @@ class RandomWalk:
         trajectory_point_in.first_MC_step_encounter = self.MC_step_counter
         trajectory_point_in.first_global_MC_step_encounter = self.global_MC_step_counter
         trajectory_point_in.first_encounter_replica = replica_id
-        trajectory_point_in.last_tot_pot_call_global_MC_step = (
-            self.global_MC_step_counter
-        )
+        trajectory_point_in.last_tot_pot_call_global_MC_step = self.global_MC_step_counter
 
         added_tp = deepcopy(trajectory_point_in)
 
@@ -1021,14 +986,10 @@ class RandomWalk:
                 else:
                     if self.linear_storage:
                         self.histogram[cur_tp_index].clear_possibility_info()
-                        self.histogram[
-                            cur_tp_index
-                        ].egc.chemgraph.pair_equivalence_matrix = None
+                        self.histogram[cur_tp_index].egc.chemgraph.pair_equivalence_matrix = None
 
                 if self.histogram[cur_tp_index].first_MC_step_acceptance is None:
-                    self.histogram[
-                        cur_tp_index
-                    ].first_MC_step_acceptance = self.MC_step_counter
+                    self.histogram[cur_tp_index].first_MC_step_acceptance = self.MC_step_counter
                     self.histogram[
                         cur_tp_index
                     ].first_global_MC_step_acceptance = self.global_MC_step_counter
@@ -1058,9 +1019,7 @@ class RandomWalk:
 
     def update_num_visits(self, tp_index, replica_id):
         if self.histogram[tp_index].num_visits is None:
-            self.histogram[tp_index].num_visits = np.zeros(
-                (self.num_replicas,), dtype=int
-            )
+            self.histogram[tp_index].num_visits = np.zeros((self.num_replicas,), dtype=int)
         self.histogram[tp_index].num_visits[replica_id] += 1
 
     #    def hist_check_tp(self, tp):
@@ -1145,9 +1104,7 @@ class RandomWalk:
                 self.make_restart()
                 raise SoftExitCalled
 
-    def make_restart(
-        self, restart_file: str or None = None, tarball: bool or None = None
-    ):
+    def make_restart(self, restart_file: str or None = None, tarball: bool or None = None):
         """
         Create a file containing all information needed to restart the simulation from the current point.
         restart_file : name of the file where the dump is created; if None self.restart_file is used
@@ -1182,7 +1139,7 @@ class RandomWalk:
             tarball = self.compress_restart
         dump2pkl(saved_data, restart_file, compress=tarball)
 
-    def restart_from(self, restart_file: str or None = None):
+    def restart_from(self, restart_file: Union[str, None] = None):
         """
         Recover all data from
         restart_file : name of the file from which the data is recovered; if None self.restart_file is used
@@ -1201,12 +1158,8 @@ class RandomWalk:
         self.num_valid_simple_moves = recovered_data["num_valid_simple_moves"]
         self.num_accepted_simple_moves = recovered_data["num_accepted_simple_moves"]
 
-        self.num_attempted_tempering_swaps = recovered_data[
-            "num_attempted_tempering_swaps"
-        ]
-        self.num_accepted_tempering_swaps = recovered_data[
-            "num_accepted_tempering_swaps"
-        ]
+        self.num_attempted_tempering_swaps = recovered_data["num_attempted_tempering_swaps"]
+        self.num_accepted_tempering_swaps = recovered_data["num_accepted_tempering_swaps"]
 
         self.moves_since_changed = recovered_data["moves_since_changed"]
         self.global_steps_since_last = recovered_data["global_steps_since_last"]
@@ -1226,10 +1179,7 @@ class RandomWalk:
         dumped_tps = SortedList()
         tp_id = 0
         while tp_id != len(self.histogram):
-            if (
-                self.histogram[tp_id].last_tot_pot_call_global_MC_step
-                < last_tot_pot_call_cut
-            ):
+            if self.histogram[tp_id].last_tot_pot_call_global_MC_step < last_tot_pot_call_cut:
                 dumped_tps.add(deepcopy(self.histogram[tp_id]))
                 del self.histogram[tp_id]
             else:

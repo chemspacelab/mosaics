@@ -2,23 +2,18 @@
 # TODO: Konstantin: I know the number of objects created here can be cut down significantly, but
 # at this point more polishing could be excessive.
 
-from .valence_treatment import (
-    ChemGraph,
-    sorted_by_membership,
-    sorted_tuple,
-    max_bo,
-    InvalidChange,
-)
-from .ext_graph_compound import (
-    connection_forbidden,
-    atom_multiplicity_in_list,
-)
-import numpy as np
-import random, bisect, itertools
-from igraph.operators import disjoint_union
+import bisect
+import itertools
+import random
 from copy import deepcopy
-from .misc_procedures import intlog, VERBOSITY, VERBOSITY_MUTED
+
+import numpy as np
+from igraph.operators import disjoint_union
 from sortedcontainers import SortedList
+
+from .ext_graph_compound import atom_multiplicity_in_list, connection_forbidden
+from .misc_procedures import VERBOSITY, VERBOSITY_MUTED, intlog
+from .valence_treatment import ChemGraph, InvalidChange, max_bo, sorted_by_membership, sorted_tuple
 
 
 class Frag2FragMapping:
@@ -134,14 +129,11 @@ class FragmentPair:
         self.remainder_membership_vector_value = 1
         self.border_membership_vector_value = -1
 
-        self.membership_vector = np.repeat(
-            self.remainder_membership_vector_value, cg.nhatoms()
-        )
+        self.membership_vector = np.repeat(self.remainder_membership_vector_value, cg.nhatoms())
         self.membership_vector[origin_point] = self.core_membership_vector_value
 
         self.affected_bonds = [
-            (self.origin_point, neigh)
-            for neigh in self.chemgraph.neighbors(origin_point)
+            (self.origin_point, neigh) for neigh in self.chemgraph.neighbors(origin_point)
         ]
 
         self.bond_list_equivalence_class_examples = []
@@ -166,9 +158,9 @@ class FragmentPair:
             if self.is_remainder(new_id):
                 self.membership_vector[new_id] = self.border_membership_vector_value
         self.affected_bonds = []
-        for border_id in np.where(
-            self.membership_vector == self.border_membership_vector_value
-        )[0]:
+        for border_id in np.where(self.membership_vector == self.border_membership_vector_value)[
+            0
+        ]:
             self.membership_vector[border_id] = self.core_membership_vector_value
             for neigh in self.chemgraph.neighbors(border_id):
                 if self.is_remainder(neigh):
@@ -195,9 +187,7 @@ class FragmentPair:
 
         saved_all_bond_orders = {}
 
-        default_bond_order_dict = (
-            {}
-        )  # orders of bonds not affected by resonance structures
+        default_bond_order_dict = {}  # orders of bonds not affected by resonance structures
 
         cg = self.chemgraph
 
@@ -226,18 +216,14 @@ class FragmentPair:
                     default_bond_order_dict[cur_bo] = [bond_tuple]
 
         if len(resonance_structure_orders_iterators) == 0:
-            self.affected_status = [
-                FragmentPairAffectedBondStatus(default_bond_order_dict)
-            ]
+            self.affected_status = [FragmentPairAffectedBondStatus(default_bond_order_dict)]
             return
 
         self.affected_status = []
         for resonance_structure_orders_ids in itertools.product(
             *resonance_structure_orders_iterators
         ):
-            new_status = FragmentPairAffectedBondStatus(
-                deepcopy(default_bond_order_dict)
-            )
+            new_status = FragmentPairAffectedBondStatus(deepcopy(default_bond_order_dict))
             for res_reg_id, rso_id in zip(
                 self.affected_resonance_structures, resonance_structure_orders_ids
             ):
@@ -259,12 +245,8 @@ class FragmentPair:
 
     def assign_equivalence_class_to_atom_tuple(self, atom_tuple):
         found_equivalence_class = None
-        for equiv_cl_id, other_at in enumerate(
-            self.bond_list_equivalence_class_examples
-        ):
-            if self.chemgraph.uninit_atom_sets_equivalent_wcolor_check(
-                other_at, atom_tuple
-            ):
+        for equiv_cl_id, other_at in enumerate(self.bond_list_equivalence_class_examples):
+            if self.chemgraph.uninit_atom_sets_equivalent_wcolor_check(other_at, atom_tuple):
                 found_equivalence_class = equiv_cl_id
                 break
         if found_equivalence_class is None:
@@ -319,8 +301,7 @@ class FragmentPair:
 
     def get_hatoms_sublist(self, frag_id):
         return [
-            self.chemgraph.hatoms[ha_id].mincopy()
-            for ha_id in self.get_sorted_vertices(frag_id)
+            self.chemgraph.hatoms[ha_id].mincopy() for ha_id in self.get_sorted_vertices(frag_id)
         ]
 
     def get_frag_subgraph(self, frag_id):
@@ -372,9 +353,9 @@ class FragmentPair:
         for new_bond_tuple in created_bonds:
             new_graph.add_edge(*new_bond_tuple)
 
-        new_hatoms = self.get_hatoms_sublist(
-            frag_id_self
-        ) + other_fp.get_hatoms_sublist(frag_id_other)
+        new_hatoms = self.get_hatoms_sublist(frag_id_self) + other_fp.get_hatoms_sublist(
+            frag_id_other
+        )
 
         new_ChemGraph = ChemGraph(hatoms=new_hatoms, graph=new_graph)
 
@@ -440,9 +421,7 @@ class BondOrderSortedTuplePermutations:
         self.bo_tuple_dict1 = status1.bond_tuple_dict
         self.bo_tuple_dict2 = status2.bond_tuple_dict
         # Check that the two dictionnaries are of similar dimensionality.
-        self.non_empty = bo_tuple_dicts_shapes_match(
-            self.bo_tuple_dict1, self.bo_tuple_dict2
-        )
+        self.non_empty = bo_tuple_dicts_shapes_match(self.bo_tuple_dict1, self.bo_tuple_dict2)
 
         if not self.non_empty:
             return
@@ -498,12 +477,8 @@ class BondOrderSortedTuplePermutations:
 
 
 def crossover_outcomes(cg_pair, chosen_sizes, origin_points, forbidden_bonds=None):
-    frag1 = FragmentPair(
-        cg_pair[0], origin_points[0], neighborhood_size=chosen_sizes[0]
-    )
-    frag2 = FragmentPair(
-        cg_pair[1], origin_points[1], neighborhood_size=chosen_sizes[1]
-    )
+    frag1 = FragmentPair(cg_pair[0], origin_points[0], neighborhood_size=chosen_sizes[0])
+    frag2 = FragmentPair(cg_pair[1], origin_points[1], neighborhood_size=chosen_sizes[1])
 
     new_chemgraph_pairs = []
     new_origin_points = None
@@ -518,9 +493,7 @@ def crossover_outcomes(cg_pair, chosen_sizes, origin_points, forbidden_bonds=Non
                 new_chemgraph_2, new_membership_vector_2 = frag2.crossover(
                     frag1, tuples2, tuples1, status_id2, status_id1
                 )
-                if (new_membership_vector_1 is None) or (
-                    new_membership_vector_2 is None
-                ):
+                if (new_membership_vector_1 is None) or (new_membership_vector_2 is None):
                     continue
                 if new_origin_points is None:
                     map1 = Frag2FragMapping(
@@ -592,15 +565,11 @@ class RandomTupleBondReconnector:
                 if forbidden_bonds is not None:
                     nc11 = frag1.ncharge(tuples1[0])
                     nc22 = frag2.ncharge(tuples2[1])
-                    if connection_forbidden(
-                        nc11, nc22, forbidden_bonds=forbidden_bonds
-                    ):
+                    if connection_forbidden(nc11, nc22, forbidden_bonds=forbidden_bonds):
                         return False
                     nc21 = frag2.ncharge(tuples2[0])
                     nc12 = frag1.ncharge(tuples1[1])
-                    if connection_forbidden(
-                        nc21, nc12, forbidden_bonds=forbidden_bonds
-                    ):
+                    if connection_forbidden(nc21, nc12, forbidden_bonds=forbidden_bonds):
                         return False
         return True
 
@@ -647,17 +616,11 @@ def matching_status_reconnectors(frag1, frag2):
     valid_reconnector_equiv_reps = []
     valid_status_ids = []
     for status_id1, status1 in enumerate(frag1.get_equiv_checked_affected_statuses()):
-        for status_id2, status2 in enumerate(
-            frag2.get_equiv_checked_affected_statuses()
-        ):
-            if not bo_tuple_dicts_shapes_match(
-                status1.bond_tuple_dict, status2.bond_tuple_dict
-            ):
+        for status_id2, status2 in enumerate(frag2.get_equiv_checked_affected_statuses()):
+            if not bo_tuple_dicts_shapes_match(status1.bond_tuple_dict, status2.bond_tuple_dict):
                 continue
             cur_reconnector = RandomTupleBondReconnector(status1, status2)
-            cur_reconnector_equiv_rep = cur_reconnector.equivalence_representation(
-                frag1, frag2
-            )
+            cur_reconnector_equiv_rep = cur_reconnector.equivalence_representation(frag1, frag2)
             if cur_reconnector_equiv_rep not in valid_reconnector_equiv_reps:
                 valid_reconnector_equiv_reps.append(cur_reconnector_equiv_rep)
                 valid_reconnectors.append(cur_reconnector)
@@ -666,12 +629,8 @@ def matching_status_reconnectors(frag1, frag2):
 
 
 def matching_status_reconnectors_wfrags(cg_pair, origin_points, chosen_sizes):
-    frag1 = FragmentPair(
-        cg_pair[0], origin_points[0], neighborhood_size=chosen_sizes[0]
-    )
-    frag2 = FragmentPair(
-        cg_pair[1], origin_points[1], neighborhood_size=chosen_sizes[1]
-    )
+    frag1 = FragmentPair(cg_pair[0], origin_points[0], neighborhood_size=chosen_sizes[0])
+    frag2 = FragmentPair(cg_pair[1], origin_points[1], neighborhood_size=chosen_sizes[1])
     valid_reconnectors, valid_status_ids = matching_status_reconnectors(frag1, frag2)
     return valid_reconnectors, valid_status_ids, frag1, frag2
 
@@ -734,9 +693,7 @@ class FragmentPairReconnectingBlob:
                 (bond_tuple[0] + hatom_id_shift, bond_tuple[1] + hatom_id_shift)
                 for bond_tuple in exchanged_tuple_list2
             ]
-            self.forward_reconnection.append(
-                [exchanged_tuple_list1, exchanged_tuple_true_list2]
-            )
+            self.forward_reconnection.append([exchanged_tuple_list1, exchanged_tuple_true_list2])
         self.backward_reconnection = []
 
         # Logarithm of probability ratio of the forward and backward reconnection being proposed.
@@ -744,9 +701,7 @@ class FragmentPairReconnectingBlob:
         # Need to save old valences to check that they are satisfied in the new compounds.
         self.old_valences_lists = []
         self.old_valences_lists.append(
-            frag1.adjusted_ha_valences(
-                affected_status_id1, frag1.core_membership_vector_value
-            )
+            frag1.adjusted_ha_valences(affected_status_id1, frag1.core_membership_vector_value)
             + frag2.adjusted_ha_valences(
                 affected_status_id2, frag2.remainder_membership_vector_value
             )
@@ -755,9 +710,7 @@ class FragmentPairReconnectingBlob:
             frag1.adjusted_ha_valences(
                 affected_status_id1, frag1.remainder_membership_vector_value
             )
-            + frag2.adjusted_ha_valences(
-                affected_status_id2, frag2.core_membership_vector_value
-            )
+            + frag2.adjusted_ha_valences(affected_status_id2, frag2.core_membership_vector_value)
         )
 
         self.init_chemgraph_colors()
@@ -816,17 +769,13 @@ class FragmentPairReconnectingBlob:
                 exchanged_tuple2, exchanged_tuple_list2[exchange_id + 1 :]
             )
             # Making the necessary bond changes.
-            new_bond1, new_bond2 = get_exchanged_tuples(
-                exchanged_tuple1, exchanged_tuple2
-            )
+            new_bond1, new_bond2 = get_exchanged_tuples(exchanged_tuple1, exchanged_tuple2)
             self.blob_chemgraph.graph.add_edges([new_bond1, new_bond2])
             # Updating the lists of created bonds.
             backward_exchanged_tuples1.append(new_bond1)
             backward_exchanged_tuples2.append(new_bond2)
 
-        self.backward_reconnection.append(
-            [backward_exchanged_tuples1, backward_exchanged_tuples2]
-        )
+        self.backward_reconnection.append([backward_exchanged_tuples1, backward_exchanged_tuples2])
 
     def disconnect_extra_tuples(self, backward_tuple_list1, backward_tuple_list2):
         # Not %100 how useful it is, but making sure forward and backward connections are marked in same order.
@@ -835,9 +784,7 @@ class FragmentPairReconnectingBlob:
         for exchange_id, (exchanged_tuple1, exchanged_tuple2) in enumerate(
             zip(final_exchanged_tuple_list1, final_exchanged_tuple_list2)
         ):
-            broken_bond1, broken_bond2 = get_exchanged_tuples(
-                exchanged_tuple1, exchanged_tuple2
-            )
+            broken_bond1, broken_bond2 = get_exchanged_tuples(exchanged_tuple1, exchanged_tuple2)
             self.blob_chemgraph.graph.delete_edges([broken_bond1, broken_bond2])
             self.log_prob_balance -= self.log_prob_bond_choice(
                 exchanged_tuple1, final_exchanged_tuple_list1[:exchange_id]
@@ -850,13 +797,10 @@ class FragmentPairReconnectingBlob:
         self.log_prob_balance = 0.0
         for [exchanged_tuple_list1, exchanged_tuple_list2] in self.forward_reconnection:
             self.reconnect_tuples(exchanged_tuple_list1, exchanged_tuple_list2)
-        for [backward_tuple_list1, backward_tuple_list2] in self.backward_reconnection[
-            ::-1
-        ]:
+        for [backward_tuple_list1, backward_tuple_list2] in self.backward_reconnection[::-1]:
             self.disconnect_extra_tuples(backward_tuple_list1, backward_tuple_list2)
 
     def chemgraphs_origin_points(self):
-
         cg_pair = []
         new_origin_points = []
         for frag_member_value, origin_point, old_valences_list in zip(
@@ -866,9 +810,7 @@ class FragmentPairReconnectingBlob:
         ):
             frag_members = np.where(self.membership_vector == frag_member_value)[0]
             new_graph = self.blob_chemgraph.graph.subgraph(frag_members)
-            new_hatoms = [
-                self.blob_chemgraph.hatoms[frag_member] for frag_member in frag_members
-            ]
+            new_hatoms = [self.blob_chemgraph.hatoms[frag_member] for frag_member in frag_members]
             new_cg = ChemGraph(hatoms=new_hatoms, graph=new_graph)
 
             # Check that valences were valid.
@@ -881,20 +823,14 @@ class FragmentPairReconnectingBlob:
         return cg_pair, new_origin_points
 
 
-def crossover_sample_random_outcome(
-    cg_pair, chosen_sizes, origin_points, forbidden_bonds=None
-):
+def crossover_sample_random_outcome(cg_pair, chosen_sizes, origin_points, forbidden_bonds=None):
     """
     Make num_pair_generation_attempts attempts to create a cross-coupling from , then randomly choose among the resulting random cross-couplings.
     Also returns: (1) probability factor related to the number of permutations (2) probability factor corresponding to status choice.
     Note that probability factor corresponding to reconnector.shuffle cancels out.
     """
-    frag1 = FragmentPair(
-        cg_pair[0], origin_points[0], neighborhood_size=chosen_sizes[0]
-    )
-    frag2 = FragmentPair(
-        cg_pair[1], origin_points[1], neighborhood_size=chosen_sizes[1]
-    )
+    frag1 = FragmentPair(cg_pair[0], origin_points[0], neighborhood_size=chosen_sizes[0])
+    frag2 = FragmentPair(cg_pair[1], origin_points[1], neighborhood_size=chosen_sizes[1])
     (
         valid_reconnectors,
         valid_status_ids,
@@ -934,9 +870,7 @@ def crossover_sample_random_outcome(
     )
 
 
-def frag_swap_size_compliant(
-    cg, frag_size_leaving, frag_size_adding, nhatoms_range=None
-):
+def frag_swap_size_compliant(cg, frag_size_leaving, frag_size_adding, nhatoms_range=None):
     """
     Check whether swapping core fragments of defined status leaves a GraphCompound satisfying number of nodes constraint.
     """
@@ -968,9 +902,7 @@ def frag_size_status_list(cg, origin_point, max_num_affected_bonds=None):
     return output
 
 
-def contains_matching_status(
-    cg1, cg2, status_list1, status_list2, forbidden_bonds=None
-):
+def contains_matching_status(cg1, cg2, status_list1, status_list2, forbidden_bonds=None):
     for status1 in status_list1:
         for status2 in status_list2:
             if BondOrderSortedTuplePermutations(
@@ -996,9 +928,7 @@ def matching_frag_size_status_list(
     for (frag_size1, status_list1), (frag_size2, status_list2) in itertools.product(
         *unfiltered_frag_size_status_lists
     ):
-        if (frag_size1 < smallest_exchange_size) and (
-            frag_size2 < smallest_exchange_size
-        ):
+        if (frag_size1 < smallest_exchange_size) and (frag_size2 < smallest_exchange_size):
             continue
         if (frag_size1 > cg_pair[0].nhatoms() - smallest_exchange_size) and (
             frag_size2 > cg_pair[1].nhatoms() - smallest_exchange_size
@@ -1067,9 +997,7 @@ def randomized_crossover(
         origin_points.append(chosen_origin_point)
 
     # Generate lists containing possible fragment sizes and the corresponding bond status.
-    forward_mfssl = matching_frag_size_status_list(
-        cg_pair, origin_points, **internal_kwargs
-    )
+    forward_mfssl = matching_frag_size_status_list(cg_pair, origin_points, **internal_kwargs)
 
     if len(forward_mfssl) == 0:
         return None, None

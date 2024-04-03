@@ -1,25 +1,26 @@
 # Utils that mainly appear in tests or analysis of data.
-from .data import NUCLEAR_CHARGE
+import copy
+import datetime
+import os
+
+import numpy as np
+from joblib import Parallel, delayed
 from sortedcontainers import SortedDict
-from .valence_treatment import ChemGraph, str2ChemGraph
+
+from .data import NUCLEAR_CHARGE
+from .modify import egc_change_func, random_modification_path_choice
 from .random_walk import (
-    randomized_change,
-    random_modification_path_choice,
-    TrajectoryPoint,
-    str2TrajectoryPoint,
+    CandidateCompound,
     RandomWalk,
-    full_change_list,
-    egc_change_func,
-    inverse_procedure,
+    TrajectoryPoint,
     default_minfunc_name,
     egc_valid_wrt_change_params,
-    str2CandidateCompound,
-    CandidateCompound,
+    full_change_list,
+    inverse_procedure,
+    randomized_change,
 )
 from .utils import run
-import numpy as np
-import copy, datetime
-from joblib import delayed, Parallel
+from .valence_treatment import ChemGraph, str2ChemGraph
 
 
 def elements_in_egc_list(egc_list, as_elements=True):
@@ -83,7 +84,7 @@ def tp_not_valid(tp, **randomized_change_params):
 
 def tps_not_valid(tps, **randomized_change_params):
     if isinstance(tps, TrajectoryPoint):
-        return tp_not_valid(tp, **randomized_change_params)
+        return tp_not_valid(tps, **randomized_change_params)
     else:
         for tp in tps:
             if tp_not_valid(tp, **randomized_change_params):
@@ -108,12 +109,8 @@ def calc_bin_id(x, bin_size=None):
     return output
 
 
-def serial_generate_attempts(
-    tp_init, attempt_func, num_attempts, **randomized_change_params
-):
-    return [
-        attempt_func(tp_init, **randomized_change_params) for _ in range(num_attempts)
-    ]
+def serial_generate_attempts(tp_init, attempt_func, num_attempts, **randomized_change_params):
+    return [attempt_func(tp_init, **randomized_change_params) for _ in range(num_attempts)]
 
 
 def generate_attempts(
@@ -139,12 +136,7 @@ def generate_attempts(
 
 
 def check_one_sided_prop_probability(
-    tp_init,
-    tp_trial,
-    num_attempts=10000,
-    bin_size=None,
-    nprocs=None,
-    **randomized_change_params
+    tp_init, tp_trial, num_attempts=10000, bin_size=None, nprocs=None, **randomized_change_params
 ):
     if isinstance(tp_trial, list):
         true_list = tp_trial
@@ -196,9 +188,7 @@ def log_ratio_rmse(num_attempts, *probs):
     return np.sqrt(sqdev / num_attempts)
 
 
-def check_prop_probability(
-    tp1, tp2_list, label_dict=None, num_attempts=10000, **one_sided_kwargs
-):
+def check_prop_probability(tp1, tp2_list, label_dict=None, num_attempts=10000, **one_sided_kwargs):
     """
     Check that simple MC moves satisfy detailed balance for a pair of trajectory point objects.
     """
@@ -239,9 +229,7 @@ def check_prop_probability(
                 print("NO INVERSE STEPS")
             if forward_present:
                 forward_prob = forward_observed_probs[inverted_fhi]
-                print(
-                    "FORWARD:", *forward_trial_prob_averaged[inverted_fhi], forward_prob
-                )
+                print("FORWARD:", *forward_trial_prob_averaged[inverted_fhi], forward_prob)
             else:
                 print("NO FORWARD STEPS")
             if forward_present and inverse_present:
@@ -273,9 +261,7 @@ def generate_proc_example(
         modification_path, _ = random_modification_path_choice(
             old_egc, possibilities, change_procedure, **other_kwargs
         )
-        new_egc = egc_change_func(
-            tp_copy.egc, modification_path, change_procedure, **other_kwargs
-        )
+        new_egc = egc_change_func(tp_copy.egc, modification_path, change_procedure, **other_kwargs)
         if new_egc is not None:
             tp_out = TrajectoryPoint(egc=new_egc)
             if new_tp is not None:
@@ -283,9 +269,7 @@ def generate_proc_example(
                     continue
             if print_dicts:
                 inv_proc = inverse_procedure[change_procedure]
-                tp_out.init_possibility_info(
-                    change_prob_dict=[inv_proc], **other_kwargs
-                )
+                tp_out.init_possibility_info(change_prob_dict=[inv_proc], **other_kwargs)
                 print("EXAMPLE FOR:", tp_copy, change_procedure)
                 print("NEW TP:", tp_out)
                 print("INVERSE PROC DICT:", tp_out.possibility_dict[inv_proc])
@@ -295,9 +279,7 @@ def generate_proc_example(
     return None
 
 
-def generate_proc_sample_dict(
-    tp_init, change_prob_dict=full_change_list, **other_kwargs
-):
+def generate_proc_sample_dict(tp_init, change_prob_dict=full_change_list, **other_kwargs):
     l = []
     d = {}
     for change_procedure in change_prob_dict:
@@ -310,9 +292,7 @@ def generate_proc_sample_dict(
 
 def all_procedure_prop_probability_checks(tp_init, num_attempts=10000, **other_kwargs):
     l, d = generate_proc_sample_dict(tp_init, **other_kwargs)
-    check_prop_probability(
-        tp_init, l, label_dict=d, num_attempts=num_attempts, **other_kwargs
-    )
+    check_prop_probability(tp_init, l, label_dict=d, num_attempts=num_attempts, **other_kwargs)
 
 
 # For checking that the distribution follows Boltzmann distribution.
@@ -396,9 +376,7 @@ def print_distribution_analysis_single_beta(
         bin_middles[0] = 0.0
     else:
         for i in range(num_bins):
-            bin_middles[i] = (
-                val_lbound + (i + 0.5) * (val_ubound - val_lbound) / num_bins
-            )
+            bin_middles[i] = val_lbound + (i + 0.5) * (val_ubound - val_lbound) / num_bins
     #    bin_middle_boltzmann_weights=np.exp(-beta*bin_middles)
     for tp in histogram:
         cur_f = tp.calculated_data[min_func_name]
@@ -458,27 +436,18 @@ def print_distribution_analysis_single_beta(
             print(i, dev, dev_err)
 
 
-import os
-
-
 def ordered_filename(file_id, print_file_prefix, print_file_suffix=".txt"):
     return print_file_prefix + str(file_id) + print_file_suffix
 
 
-def print_to_separate_file_wprefix(
-    printed_string, print_file_prefix, print_file_suffix=".txt"
-):
+def print_to_separate_file_wprefix(printed_string, print_file_prefix, print_file_suffix=".txt"):
     """
     Write string into the next file with a name derived as print_file_prefix+{file_id}+print_file_suffix
     """
     file_id = 0
-    filename = ordered_filename(
-        file_id, print_file_prefix, print_file_suffix=print_file_suffix
-    )
+    filename = ordered_filename(file_id, print_file_prefix, print_file_suffix=print_file_suffix)
     while os.path.isfile(
-        ordered_filename(
-            file_id, print_file_prefix, print_file_suffix=print_file_suffix
-        )
+        ordered_filename(file_id, print_file_prefix, print_file_suffix=print_file_suffix)
     ):
         file_id += 1
         filename = ordered_filename(
@@ -599,7 +568,7 @@ data_str_label_conv_functions = {
 
 
 def compared_objects_identical(obj1, obj2):
-    if type(obj1) != type(obj2):
+    if type(obj1) is not type(obj2):
         return False
     if isinstance(obj1, float):
         try:
@@ -647,9 +616,7 @@ class SimulationLogIO:
         self.exception_on_failure = exception_on_failure
 
         self.benchmark_filename = benchmark_filename
-        if (self.benchmark_filename is not None) and (
-            os.path.isfile(self.benchmark_filename)
-        ):
+        if (self.benchmark_filename is not None) and (os.path.isfile(self.benchmark_filename)):
             self.benchmark_entry_list = self.import_from(self.benchmark_filename)
             print("(BENCHMARK IMPORTED)")
             self.current_list_id = -1

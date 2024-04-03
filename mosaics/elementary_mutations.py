@@ -5,17 +5,13 @@
 
 # TODO change_bond_order does not seem to function properly with max_fragment_num None or not 1.
 
-import numpy as np
-from .ext_graph_compound import ExtGraphCompound, connection_forbidden
-from .valence_treatment import (
-    default_valence,
-    avail_val_list,
-    max_bo,
-    next_valence,
-    sorted_tuple,
-)
 from copy import deepcopy
+
+import numpy as np
+
+from .ext_graph_compound import ExtGraphCompound, connection_forbidden
 from .misc_procedures import int_atom_checked
+from .valence_treatment import avail_val_list, default_valence, max_bo, next_valence, sorted_tuple
 
 
 def atom_equivalent_to_list_member(egc, atom_id, atom_id_list):
@@ -221,9 +217,7 @@ def chain_addition_possibilities(
 
     min_avail_added_bond_order = min(avail_added_bond_order)
 
-    potentially_altered_ha_ids = hatoms_with_changeable_nhydrogens(
-        egc, min_avail_added_bond_order
-    )
+    potentially_altered_ha_ids = hatoms_with_changeable_nhydrogens(egc, min_avail_added_bond_order)
 
     for ha_id in potentially_altered_ha_ids:
         ha = egc.chemgraph.hatoms[ha_id]
@@ -281,11 +275,7 @@ def bond_order_change_possible_resonance_structures(
         if cur_min_bo == cur_max_bo:
             return [None]
         else:
-            return [
-                cg.aa_all_bond_orders(atom_id1, atom_id2, unsorted=True).index(
-                    cur_min_bo
-                )
-            ]
+            return [cg.aa_all_bond_orders(atom_id1, atom_id2, unsorted=True).index(cur_min_bo)]
     if cur_max_bo < -bond_order_change:
         return []
     # The results will be different if we apply the change to a resonance structure where the bond order equals -bond_order_change or not. The algorithm accounts for both options.
@@ -299,9 +289,7 @@ def bond_order_change_possible_resonance_structures(
                 continue
         if pbo >= -bond_order_change:
             if unsorted_bond_orders is None:
-                unsorted_bond_orders = cg.aa_all_bond_orders(
-                    atom_id1, atom_id2, unsorted=True
-                )
+                unsorted_bond_orders = cg.aa_all_bond_orders(atom_id1, atom_id2, unsorted=True)
             possible_resonance_structures.append(unsorted_bond_orders.index(pbo))
             if pbo != -bond_order_change:
                 break
@@ -431,14 +419,12 @@ def bond_change_possibilities(
             if ha_id2 >= ha_id1:
                 break
             bond_tuple = (ha_id1, ha_id2)
-            possible_resonance_structures = (
-                bond_order_change_possible_resonance_structures(
-                    egc,
-                    *bond_tuple,
-                    bond_order_change,
-                    max_fragment_num=max_fragment_num,
-                    forbidden_bonds=forbidden_bonds,
-                )
+            possible_resonance_structures = bond_order_change_possible_resonance_structures(
+                egc,
+                *bond_tuple,
+                bond_order_change,
+                max_fragment_num=max_fragment_num,
+                forbidden_bonds=forbidden_bonds,
             )
             if len(possible_resonance_structures) == 0:
                 continue
@@ -476,7 +462,6 @@ def valence_change_possibilities(
     not_protonated=None,
     **other_kwargs,
 ):
-
     if val_change_poss_ncharges is None:
         val_change_poss_ncharges = gen_val_change_pos_ncharges(
             possible_elements, not_protonated=not_protonated
@@ -539,17 +524,13 @@ def available_added_atom_bos(added_element, added_bond_orders, not_protonated=No
 def gen_val_change_add_atom_pos_ncharges(
     possible_elements, chain_starting_element, forbidden_bonds=None
 ):
-    val_change_pos_changes = gen_val_change_pos_ncharges(
-        possible_elements, not_protonated=None
-    )
+    val_change_pos_changes = gen_val_change_pos_ncharges(possible_elements, not_protonated=None)
     if forbidden_bonds is None:
         return val_change_pos_changes
     else:
         output = []
         for ncharge in val_change_pos_changes:
-            if not connection_forbidden(
-                ncharge, chain_starting_element, forbidden_bonds
-            ):
+            if not connection_forbidden(ncharge, chain_starting_element, forbidden_bonds):
                 output.append(ncharge)
         return output
 
@@ -573,9 +554,7 @@ def valence_change_add_atoms_possibilities(
             possible_elements, chain_starting_element, forbidden_bonds=forbidden_bonds
         )
     else:
-        val_change_poss_ncharges = val_change_add_atom_poss_ncharges[
-            chain_starting_element
-        ]
+        val_change_poss_ncharges = val_change_add_atom_poss_ncharges[chain_starting_element]
 
     if len(val_change_poss_ncharges) == 0:
         return possibilities
@@ -636,7 +615,6 @@ def valence_change_remove_atoms_possibilities(
     default_valences=None,
     **other_kwargs,
 ):
-
     if nhatoms_range is not None:
         max_removed_nhatoms = egc.num_heavy_atoms() - nhatoms_range[0]
         if max_removed_nhatoms < 0:
@@ -682,16 +660,12 @@ def valence_change_remove_atoms_possibilities(
 
         saved_all_bond_orders = {}
         for neigh in cg.neighbors(ha_id):
-            saved_all_bond_orders[neigh] = cg.aa_all_bond_orders(
-                ha_id, neigh, unsorted=True
-            )
+            saved_all_bond_orders[neigh] = cg.aa_all_bond_orders(ha_id, neigh, unsorted=True)
 
         found_options = []
 
         for res_struct_id in res_struct_ids:
-            cur_valence, val_opt = cg.valence_woption(
-                ha_id, resonance_structure_id=res_struct_id
-            )
+            cur_valence, val_opt = cg.valence_woption(ha_id, resonance_structure_id=res_struct_id)
             new_valence = next_valence(ha, int_step=-1, valence_option_id=val_opt)
             if new_valence is None:
                 continue
@@ -704,9 +678,7 @@ def valence_change_remove_atoms_possibilities(
                 if val_diff % added_bond_order != 0:
                     continue
                 removed_nhatoms = val_diff // added_bond_order
-                if (nhatoms_range is not None) and (
-                    removed_nhatoms > max_removed_nhatoms
-                ):
+                if (nhatoms_range is not None) and (removed_nhatoms > max_removed_nhatoms):
                     continue
                 removed_hatoms = []
                 for neigh in cg.neighbors(ha_id):
@@ -720,9 +692,7 @@ def valence_change_remove_atoms_possibilities(
                     )
                     if neigh_valence != default_removed_valence:
                         continue
-                    bo = cg.bond_order(
-                        ha_id, neigh, resonance_structure_id=res_struct_id
-                    )
+                    bo = cg.bond_order(ha_id, neigh, resonance_structure_id=res_struct_id)
                     if bo != added_bond_order:
                         continue
                     removed_hatoms.append(neigh)
@@ -831,9 +801,7 @@ def valence_bond_change_atom_possibilities(
                     resonance_structure_id=resonance_struct_id,
                 )
                 if bond_order_change > 0:
-                    if cur_bo + bond_order_change > max_bo(
-                        pres_val_ha_nc, mod_val_ha_nc
-                    ):
+                    if cur_bo + bond_order_change > max_bo(pres_val_ha_nc, mod_val_ha_nc):
                         continue
                 else:
                     if cur_bo < -bond_order_change:
@@ -884,9 +852,7 @@ def valence_bond_change_possibilities(
         return output
 
     if bond_order_change > 0:
-        possible_second_atoms = hatoms_with_changeable_nhydrogens(
-            egc, bond_order_change
-        )
+        possible_second_atoms = hatoms_with_changeable_nhydrogens(egc, bond_order_change)
 
     altered_sigma_bond_class_tuples = []
     altered_hydrogen_number_classes = []
@@ -983,9 +949,7 @@ def val_min_checked_egc(cg):
         return None
 
 
-def add_heavy_atom_chain(
-    egc, modified_atom_id, new_chain_atoms, chain_bond_orders=None
-):
+def add_heavy_atom_chain(egc, modified_atom_id, new_chain_atoms, chain_bond_orders=None):
     new_chemgraph = deepcopy(egc.chemgraph)
     new_chemgraph.add_heavy_atom_chain(
         modified_atom_id, new_chain_atoms, chain_bond_orders=chain_bond_orders
@@ -1012,15 +976,11 @@ def replace_heavy_atom(
 
 def remove_heavy_atom(egc, removed_atom_id, resonance_structure_id=None):
     new_chemgraph = deepcopy(egc.chemgraph)
-    new_chemgraph.remove_heavy_atom(
-        removed_atom_id, resonance_structure_id=resonance_structure_id
-    )
+    new_chemgraph.remove_heavy_atom(removed_atom_id, resonance_structure_id=resonance_structure_id)
     return ExtGraphCompound(chemgraph=new_chemgraph)
 
 
-def change_bond_order(
-    egc, atom_id1, atom_id2, bond_order_change, resonance_structure_id=0
-):
+def change_bond_order(egc, atom_id1, atom_id2, bond_order_change, resonance_structure_id=0):
     new_chemgraph = deepcopy(egc.chemgraph)
     new_chemgraph.change_bond_order(
         atom_id1,
@@ -1037,9 +997,7 @@ def change_valence(egc, modified_atom_id, new_valence, resonance_structure_id=No
         resonance_structure_region = new_chemgraph.single_atom_resonance_structure(
             modified_atom_id
         )
-        new_chemgraph.adjust_resonance_valences(
-            resonance_structure_region, resonance_structure_id
-        )
+        new_chemgraph.adjust_resonance_valences(resonance_structure_region, resonance_structure_id)
     new_chemgraph.change_valence(modified_atom_id, new_valence)
     return val_min_checked_egc(new_chemgraph)
 
@@ -1115,7 +1073,6 @@ def change_bond_order_valence(
     bond_order_change,
     resonance_structure_id=None,
 ):
-
     new_chemgraph = deepcopy(egc.chemgraph)
 
     new_chemgraph.adjust_resonance_valences_atom(
@@ -1127,9 +1084,7 @@ def change_bond_order_valence(
     if bond_order_change > 0:
         new_chemgraph.change_valence(val_changed_atom_id, new_valence)
 
-    new_chemgraph.change_bond_order(
-        val_changed_atom_id, other_atom_id, bond_order_change
-    )
+    new_chemgraph.change_bond_order(val_changed_atom_id, other_atom_id, bond_order_change)
 
     if bond_order_change < 0:
         new_chemgraph.change_valence(val_changed_atom_id, new_valence)

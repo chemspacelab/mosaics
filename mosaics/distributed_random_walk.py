@@ -2,27 +2,26 @@
 # Inspiration: https://doi.org/10.1016/j.csda.2008.10.025
 # TODO: For now only implemented loky parallelization which is confined to one machine. If someone needs many-machine parallelization
 # it should be possible to implement mpi4py-based object treating several RandomWalkEnsemble objects the same way RandomWalkEnsemble treats RandomWalk objects.
-import numpy as np
+import os
+import random
 from copy import deepcopy
-from .random_walk import (
-    TrajectoryPoint,
-    RandomWalk,
-    default_minfunc_name,
-    CandidateCompound,
-    maintain_sorted_CandidateCompound_list,
-    Metropolis_acceptance_probability,
-)
-from .valence_treatment import (
-    set_misc_global_variables,
-    misc_global_variables_current_kwargs,
-)
-from sortedcontainers import SortedList
+from itertools import repeat
+from subprocess import run as terminal_run
+
+import numpy as np
 from loky import get_reusable_executor
 from loky.process_executor import TerminatedWorkerError
-from itertools import repeat
 from sortedcontainers import SortedList
-import random, os
-from subprocess import run as terminal_run
+
+from .random_walk import (
+    CandidateCompound,
+    Metropolis_acceptance_probability,
+    RandomWalk,
+    TrajectoryPoint,
+    default_minfunc_name,
+    maintain_sorted_CandidateCompound_list,
+)
+from .valence_treatment import misc_global_variables_current_kwargs, set_misc_global_variables
 
 
 class SubpopulationPropagationIntermediateResults:
@@ -61,9 +60,7 @@ class SubpopulationPropagationIntermediateResults:
         if self.num_minfunc_saved_steps is None:
             self.minfunc_val_log = None
         else:
-            self.minfunc_val_log = np.empty(
-                (self.num_minfunc_saved_steps, len(rw.cur_tps))
-            )
+            self.minfunc_val_log = np.empty((self.num_minfunc_saved_steps, len(rw.cur_tps)))
 
     def update(self, rw):
         """
@@ -98,13 +95,11 @@ class SubpopulationPropagationIntermediateResults:
                 acc_prob = Metropolis_acceptance_probability(
                     (beta1 - beta2) * (minfunc_1 - minfunc_2)
                 )
-                self.sum_tempering_neighbors_acceptance_probability[
-                    exploration_replica_id
-                ] += (acc_prob / self.num_beta_subpopulation_clones)
+                self.sum_tempering_neighbors_acceptance_probability[exploration_replica_id] += (
+                    acc_prob / self.num_beta_subpopulation_clones
+                )
 
-    def update_worst_accepted_candidates(
-        self, current_trajectory_points, minimized_function_name
-    ):
+    def update_worst_accepted_candidates(self, current_trajectory_points, minimized_function_name):
         if self.worst_accepted_candidates is None:
             self.worst_accepted_candidates = [
                 CandidateCompound(
@@ -288,18 +283,10 @@ class DistributedRandomWalk:
         )
 
         self.terminated_worker_max_restart_number = terminated_worker_max_restart_number
-        self.terminated_worker_num_extra_rng_calls = (
-            terminated_worker_num_extra_rng_calls
-        )
-        self.subpopulation_num_extra_rng_calls = np.zeros(
-            (self.num_subpopulations,), dtype=int
-        )
-        self.subpopulation_num_attempted_restarts = np.zeros(
-            (self.num_subpopulations,), dtype=int
-        )
-        self.subpopulation_propagation_completed = np.zeros(
-            (self.num_subpopulations,), dtype=int
-        )
+        self.terminated_worker_num_extra_rng_calls = terminated_worker_num_extra_rng_calls
+        self.subpopulation_num_extra_rng_calls = np.zeros((self.num_subpopulations,), dtype=int)
+        self.subpopulation_num_attempted_restarts = np.zeros((self.num_subpopulations,), dtype=int)
+        self.subpopulation_propagation_completed = np.zeros((self.num_subpopulations,), dtype=int)
         self.subpopulation_propagation_results_list = [
             None for _ in range(self.num_subpopulations)
         ]
@@ -325,9 +312,7 @@ class DistributedRandomWalk:
         minfunc_val = init_tp.calc_or_lookup(minfunc_eval_dict)[self.min_function_name]
         return CandidateCompound(init_tp, minfunc_val)
 
-    def initialize_current_trajectory_points(
-        self, init_tps=None, init_egcs=None, init_egc=None
-    ):
+    def initialize_current_trajectory_points(self, init_tps=None, init_egcs=None, init_egc=None):
         if init_tps is None:
             if init_egcs is None:
                 assert init_egc is not None
@@ -343,9 +328,7 @@ class DistributedRandomWalk:
         self.current_trajectory_points = init_tps
 
     def init_cloned_betas(self, beta_input):
-        self.tot_num_clones = (
-            self.num_subpopulations * self.num_beta_subpopulation_clones
-        )
+        self.tot_num_clones = self.num_subpopulations * self.num_beta_subpopulation_clones
         self.original_betas = np.array(beta_input)
         betas = []
         for beta in beta_input:
@@ -418,18 +401,12 @@ class DistributedRandomWalk:
         self.num_valid_crossovers += random_walk_instance.num_valid_crossovers
         self.num_accepted_crossovers += random_walk_instance.num_accepted_crossovers
 
-        self.num_attempted_simple_moves += (
-            random_walk_instance.num_attempted_simple_moves
-        )
+        self.num_attempted_simple_moves += random_walk_instance.num_attempted_simple_moves
         self.num_valid_simple_moves += random_walk_instance.num_valid_simple_moves
         self.num_accepted_simple_moves += random_walk_instance.num_accepted_simple_moves
 
-        self.num_attempted_tempering_swaps += (
-            random_walk_instance.num_attempted_tempering_swaps
-        )
-        self.num_accepted_tempering_swaps += (
-            random_walk_instance.num_accepted_tempering_swaps
-        )
+        self.num_attempted_tempering_swaps += random_walk_instance.num_attempted_tempering_swaps
+        self.num_accepted_tempering_swaps += random_walk_instance.num_accepted_tempering_swaps
 
     def default_init_rng_states(self):
         if self.subpopulation_propagation_seed is None:
@@ -445,9 +422,7 @@ class DistributedRandomWalk:
         for _ in self.original_betas:
             clone_indices = []
             for subpop_id in range(self.num_subpopulations):
-                clone_indices += [
-                    subpop_id for _ in range(self.num_beta_subpopulation_clones)
-                ]
+                clone_indices += [subpop_id for _ in range(self.num_beta_subpopulation_clones)]
             random.shuffle(clone_indices)
             shuffled_indices += clone_indices
         self.subpopulation_indices_list = [[] for _ in range(self.num_subpopulations)]
@@ -481,9 +456,7 @@ class DistributedRandomWalk:
                 all_greedy_indices.append(replica_id)
             else:
                 all_exploration_indices.append(replica_id)
-        subpopulation_greedy_indices_list = self.divide_into_subpopulations(
-            all_greedy_indices
-        )
+        subpopulation_greedy_indices_list = self.divide_into_subpopulations(all_greedy_indices)
         subpopulation_exploration_indices_list = self.divide_into_subpopulations(
             all_exploration_indices
         )
@@ -509,18 +482,14 @@ class DistributedRandomWalk:
             self.update_saved_candidates(candidate)
         if self.track_av_tempering_neighbors_acceptance_probability:
             self.av_tempering_neighbors_acceptance_probability[:] += (
-                cur_intermediate_results.sum_tempering_neighbors_acceptance_probability[
-                    :
-                ]
+                cur_intermediate_results.sum_tempering_neighbors_acceptance_probability[:]
                 / self.num_subpopulations
                 / cur_intermediate_results.nsteps
             )
         if cur_intermediate_results.track_worst_accepted_candidates:
             if self.worst_accepted_candidates is None:
                 self.worst_accepted_candidates = [None for _ in self.betas]
-            self.update_worst_accepted_candidates(
-                subpopulation_indices, cur_intermediate_results
-            )
+            self.update_worst_accepted_candidates(subpopulation_indices, cur_intermediate_results)
         if cur_intermediate_results.minfunc_val_log is not None:
             if self.minfunc_val_log is None:
                 self.minfunc_val_log = np.empty(
@@ -534,23 +503,17 @@ class DistributedRandomWalk:
             ):
                 self.minfunc_val_log[:, replica_index] = replica_minfunc_logs[:]
 
-    def update_worst_accepted_candidates(
-        self, subpopulation_indices, cur_intermediate_results
-    ):
+    def update_worst_accepted_candidates(self, subpopulation_indices, cur_intermediate_results):
         for true_id, worst_cand in zip(
             subpopulation_indices, cur_intermediate_results.worst_accepted_candidates
         ):
             old_candidate = self.worst_accepted_candidates[true_id]
-            if (old_candidate is None) or (
-                old_candidate.func_val < worst_cand.func_val
-            ):
+            if (old_candidate is None) or (old_candidate.func_val < worst_cand.func_val):
                 self.worst_accepted_candidates[true_id] = worst_cand
 
     def completed_subpopulation_sublist(self, full_list):
         sublist = []
-        for completed, element in zip(
-            self.subpopulation_propagation_completed, full_list
-        ):
+        for completed, element in zip(self.subpopulation_propagation_completed, full_list):
             if not completed:
                 sublist.append(element)
         return sublist
@@ -564,9 +527,7 @@ class DistributedRandomWalk:
         """
         all_init_tps = []
         all_betas = []
-        for subpopulation_id, subpopulation_indices in enumerate(
-            self.subpopulation_indices_list
-        ):
+        for subpopulation_id, subpopulation_indices in enumerate(self.subpopulation_indices_list):
             if self.subpopulation_propagation_completed[subpopulation_id]:
                 continue
             # The initial trajectory points and the beta values.
@@ -616,8 +577,7 @@ class DistributedRandomWalk:
             np.logical_not(self.subpopulation_propagation_completed)
         )[0]
         results_iterator = self.executor.map(
-            gen_subpopulation_propagation_result,
-            *self.subpopulation_propagation_inputs()
+            gen_subpopulation_propagation_result, *self.subpopulation_propagation_inputs()
         )
         if self.synchronization_signal_file is not None:
             terminal_run(["rm", "-f", self.synchronization_signal_file])
@@ -625,9 +585,7 @@ class DistributedRandomWalk:
         while True:
             if propagated_subpopulation_id == len(all_propagated_subpopulation_ids):
                 break
-            subpopulation_id = all_propagated_subpopulation_ids[
-                propagated_subpopulation_id
-            ]
+            subpopulation_id = all_propagated_subpopulation_ids[propagated_subpopulation_id]
             try:
                 cur_res = results_iterator.__next__()
                 self.subpopulation_propagation_completed[subpopulation_id] = True
@@ -671,16 +629,10 @@ class DistributedRandomWalk:
                 subpopulation_propagation_latest_logs.append(
                     (subpopulation_indices, random_walk, intermediate_results)
                 )
-            self.update_temporary_data(
-                subpopulation_indices, random_walk, intermediate_results
-            )
+            self.update_temporary_data(subpopulation_indices, random_walk, intermediate_results)
             self.add_to_move_statistics(random_walk)
-            self.subpopulation_random_rng_states[
-                subpopulation_index
-            ] = propagation_results[2]
-            self.subpopulation_numpy_rng_states[
-                subpopulation_index
-            ] = propagation_results[3]
+            self.subpopulation_random_rng_states[subpopulation_index] = propagation_results[2]
+            self.subpopulation_numpy_rng_states[subpopulation_index] = propagation_results[3]
             self.update_current_trajectory_points(subpopulation_indices, random_walk)
         if self.save_logs:
             self.propagation_logs.append(subpopulation_propagation_latest_logs)

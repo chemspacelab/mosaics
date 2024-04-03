@@ -1,4 +1,5 @@
 import numpy as np
+
 from .modify import global_step_traj_storage_label
 
 
@@ -6,8 +7,6 @@ class DataUnavailable(Exception):
     """
     Raised if data not available in a histogram is referred to.
     """
-
-    pass
 
 
 # Some procedures for convenient RandomWalk analysis.
@@ -74,15 +73,13 @@ def ordered_trajectory_ids_kwargs_from_restart(restart_data):
 
 def ordered_trajectory_from_restart(restart_data):
     return ordered_trajectory(
-        restart_data["histogram"],
-        **ordered_trajectory_ids_kwargs_from_restart(restart_data)
+        restart_data["histogram"], **ordered_trajectory_ids_kwargs_from_restart(restart_data)
     )
 
 
 def ordered_trajectory_ids_from_restart(restart_data):
     return ordered_trajectory_ids(
-        restart_data["histogram"],
-        **ordered_trajectory_ids_kwargs_from_restart(restart_data)
+        restart_data["histogram"], **ordered_trajectory_ids_kwargs_from_restart(restart_data)
     )
 
 

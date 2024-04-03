@@ -1,17 +1,53 @@
-from .elementary_mutations import *
-from .crossover import *
+import random
+from copy import deepcopy
+from typing import Union
+
+import numpy as np
+from sortedcontainers import SortedList
+
+from .elementary_mutations import (
+    add_heavy_atom_chain,
+    atom_removal_possibilities,
+    atom_replacement_possibilities,
+    bond_change_possibilities,
+    bond_order_change_possible_resonance_structures,
+    breaking_bond_obeys_num_fragments,
+    chain_addition_possibilities,
+    change_bond_order,
+    change_bond_order_valence,
+    change_valence,
+    change_valence_add_atoms,
+    change_valence_remove_atoms,
+    polyvalent_hatom_indices,
+    remove_heavy_atom,
+    replace_heavy_atom,
+    valence_bond_change_possibilities,
+    valence_change_add_atoms_possibilities,
+    valence_change_possibilities,
+    valence_change_remove_atoms_possibilities,
+)
+from .ext_graph_compound import (
+    ExtGraphCompound,
+    connection_forbidden,
+    log_atom_multiplicity_in_list,
+)
 from .misc_procedures import (
+    VERBOSITY,
+    VERBOSITY_MUTED,
+    llenlog,
     lookup_or_none,
     random_choice_from_dict,
     random_choice_from_nested_dict,
     str_atom_corr,
-    llenlog,
-    VERBOSITY,
-    VERBOSITY_MUTED,
 )
-from .valence_treatment import canonically_permuted_ChemGraph, ChemGraph, str2ChemGraph
-from .ext_graph_compound import ExtGraphCompound, log_atom_multiplicity_in_list
-from sortedcontainers import SortedList
+from .valence_treatment import (
+    ChemGraph,
+    InvalidChange,
+    canonically_permuted_ChemGraph,
+    max_bo,
+    next_valence,
+    str2ChemGraph,
+)
 
 global_step_traj_storage_label = "global"
 nonglobal_step_traj_storage_label = "local"
@@ -28,9 +64,9 @@ def tp_or_chemgraph(tp):
 class TrajectoryPoint:
     def __init__(
         self,
-        egc: ExtGraphCompound or None = None,
-        cg: ChemGraph or None = None,
-        num_visits: int or None = None,
+        egc: Union[ExtGraphCompound, None] = None,
+        cg: Union[ChemGraph, None] = None,
+        num_visits: Union[int, None] = None,
     ):
         """
         This class stores an ExtGraphCompound object along with all the information needed to preserve detailed balance of the random walk.
@@ -101,9 +137,7 @@ class TrajectoryPoint:
                         + ". Check code input!"
                     )
                 for pos_label_val in pos_label_vals:
-                    cur_possibilities = cur_pos_generator(
-                        self.egc, pos_label_val, **kwargs
-                    )
+                    cur_possibilities = cur_pos_generator(self.egc, pos_label_val, **kwargs)
                     if len(cur_possibilities) != 0:
                         cur_subdict[pos_label_val] = cur_possibilities
                 if len(cur_subdict) != 0:
@@ -196,9 +230,7 @@ class TrajectoryPoint:
             other_tp.egc.chemgraph, linear_storage=linear_storage
         )
 
-    def add_visit_step_id(
-        self, step_id, beta_id, step_type=global_step_traj_storage_label
-    ):
+    def add_visit_step_id(self, step_id, beta_id, step_type=global_step_traj_storage_label):
         if step_type not in self.visit_step_ids:
             self.visit_step_ids[step_type] = {}
             self.visit_step_num_ids[step_type] = {}
@@ -230,9 +262,7 @@ class TrajectoryPoint:
 
         for step_type, other_visit_step_all_ids in other_tp.visit_step_ids.items():
             for beta_id, other_visit_step_ids in other_visit_step_all_ids.items():
-                other_visit_step_num_ids = other_tp.visit_step_num_ids[step_type][
-                    beta_id
-                ]
+                other_visit_step_num_ids = other_tp.visit_step_num_ids[step_type][beta_id]
                 if other_visit_step_num_ids == 0:
                     continue
                 if step_type not in self.visit_step_ids:
@@ -244,31 +274,21 @@ class TrajectoryPoint:
                             : self.visit_step_num_ids[step_type][beta_id]
                         ]
                     )
-                    for visit_step_id in other_visit_step_ids[
-                        :other_visit_step_num_ids
-                    ]:
+                    for visit_step_id in other_visit_step_ids[:other_visit_step_num_ids]:
                         new_visit_step_ids.add(visit_step_id)
-                    self.visit_step_ids[step_type][beta_id] = np.array(
-                        new_visit_step_ids
-                    )
-                    self.visit_step_num_ids[step_type][beta_id] = len(
-                        new_visit_step_ids
-                    )
+                    self.visit_step_ids[step_type][beta_id] = np.array(new_visit_step_ids)
+                    self.visit_step_num_ids[step_type][beta_id] = len(new_visit_step_ids)
                 else:
-                    self.visit_step_ids[step_type][beta_id] = deepcopy(
-                        other_visit_step_ids
-                    )
-                    self.visit_step_num_ids[step_type][
-                        beta_id
-                    ] = other_tp.visit_step_num_ids[step_type][beta_id]
+                    self.visit_step_ids[step_type][beta_id] = deepcopy(other_visit_step_ids)
+                    self.visit_step_num_ids[step_type][beta_id] = other_tp.visit_step_num_ids[
+                        step_type
+                    ][beta_id]
 
     def canonize_chemgraph(self):
         """
         Order heavy atoms inside the ChemGraph object according to canonical ordering. Used to make some tests consistent.
         """
-        self.egc = ExtGraphCompound(
-            chemgraph=canonically_permuted_ChemGraph(self.chemgraph())
-        )
+        self.egc = ExtGraphCompound(chemgraph=canonically_permuted_ChemGraph(self.chemgraph()))
         self.clear_possibility_info()
 
     def chemgraph(self):
@@ -382,9 +402,7 @@ def egc_change_func(
     """
     Apply a modification defined through modification_path and change_function to ExtGraphCompound instance.
     """
-    if (change_function is change_bond_order) or (
-        change_function is change_bond_order_valence
-    ):
+    if (change_function is change_bond_order) or (change_function is change_bond_order_valence):
         atom_id_tuple = modification_path[1][:2]
         resonance_structure_id = modification_path[1][-1]
         bo_change = modification_path[0]
@@ -466,9 +484,7 @@ def inverse_mod_path(
     """
     Find modification path inverse to the forward_path.
     """
-    if (change_procedure is change_bond_order) or (
-        change_procedure is change_bond_order_valence
-    ):
+    if (change_procedure is change_bond_order) or (change_procedure is change_bond_order_valence):
         if linear_scaling_elementary_mutations:
             return [-forward_path[0], forward_path[1]]
         else:
@@ -485,9 +501,7 @@ def inverse_mod_path(
         return [removed_elname, neigh_id]
     if change_procedure is replace_heavy_atom:
         changed_atom_id = forward_path[-1][0]
-        inserted_elname = str_atom_corr(
-            old_egc.chemgraph.hatoms[changed_atom_id].ncharge
-        )
+        inserted_elname = str_atom_corr(old_egc.chemgraph.hatoms[changed_atom_id].ncharge)
         return [inserted_elname, changed_atom_id]
     if change_procedure is add_heavy_atom_chain:
         added_element = forward_path[0]
@@ -516,9 +530,7 @@ def inverse_mod_path(
             if removed_id < modified_id:
                 new_modified_id -= 1
         if not linear_scaling_elementary_mutations:
-            new_modified_id = new_egc.chemgraph.min_id_equivalent_atom_unchecked(
-                new_modified_id
-            )
+            new_modified_id = new_egc.chemgraph.min_id_equivalent_atom_unchecked(new_modified_id)
         bo = old_egc.chemgraph.bond_order(modified_id, removed_ids[0])
         return [forward_path[0], new_modified_id, bo]
     raise Exception()
@@ -557,9 +569,7 @@ def get_second_changed_atom_res_struct_list(
     return output
 
 
-def choose_bond_change_parameters_linear_scaling(
-    egc, possibilities, choices=None, **other_kwargs
-):
+def choose_bond_change_parameters_linear_scaling(egc, possibilities, choices=None, **other_kwargs):
     # possibilities is structured as dictionnary of "bond order change" : list of potential atoms.
     # First choose the bond order change:
     (
@@ -572,14 +582,12 @@ def choose_bond_change_parameters_linear_scaling(
     log_choice_prob += log_atom_multiplicity_in_list(
         egc, first_changed_atom, possible_atom_choices, **other_kwargs
     )
-    possible_second_changed_atom_res_struct_list = (
-        get_second_changed_atom_res_struct_list(
-            egc,
-            first_changed_atom,
-            possible_atom_choices,
-            bond_order_change,
-            **other_kwargs,
-        )
+    possible_second_changed_atom_res_struct_list = get_second_changed_atom_res_struct_list(
+        egc,
+        first_changed_atom,
+        possible_atom_choices,
+        bond_order_change,
+        **other_kwargs,
     )
     second_atom_res_struct = random.choice(possible_second_changed_atom_res_struct_list)
     second_atom = second_atom_res_struct[0]
@@ -682,16 +690,12 @@ def get_valence_changed_atom_res_struct_list(
                         found_without_sigma_bond_alteration = True
                     full_disconnections.append(cur_full_disconnection)
             else:
-                if cur_bo + bond_order_change > max_bo(
-                    changed_val_atom_nc, pres_val_ha_nc
-                ):
+                if cur_bo + bond_order_change > max_bo(changed_val_atom_nc, pres_val_ha_nc):
                     continue
                 if not found_without_sigma_bond_alteration:
                     found_without_sigma_bond_alteration = are_neighbors
             output.append((changed_val_atom_id, resonance_struct_id))
-            if (
-                bond_order_change > 0
-            ):  # we only need to find one way to create a connection
+            if bond_order_change > 0:  # we only need to find one way to create a connection
                 break
     return output
 
@@ -870,9 +874,7 @@ def prob_atom_invariance_factor(
         atom_list = list(cur_level_options.keys())
     else:
         atom_list = cur_level_options
-    return log_atom_multiplicity_in_list(
-        egc, changed_atom_id, atom_list, **other_kwargs
-    )
+    return log_atom_multiplicity_in_list(egc, changed_atom_id, atom_list, **other_kwargs)
 
 
 def random_modification_path_choice(
@@ -890,9 +892,7 @@ def random_modification_path_choice(
     )
     if get_probability_of is None:
         if special_bond_change_func:
-            mod_path, log_prob_mod_path = special_bond_change_functions[
-                cur_change_procedure
-            ](
+            mod_path, log_prob_mod_path = special_bond_change_functions[cur_change_procedure](
                 egc,
                 possibilities,
                 choices=choices,
@@ -953,9 +953,7 @@ def randomized_change(
 
     if delete_chosen_mod_path:
         if tp.modified_possibility_dict is None:
-            tp.modified_possibility_dict = deepcopy(
-                tp.possibilities(**init_possibilities_kwargs)
-            )
+            tp.modified_possibility_dict = deepcopy(tp.possibilities(**init_possibilities_kwargs))
         full_possibility_dict = tp.modified_possibility_dict
         if len(full_possibility_dict) == 0:
             return None, None
@@ -988,9 +986,7 @@ def randomized_change(
 
     total_forward_prob += forward_prob
 
-    new_egc = egc_change_func(
-        old_egc, modification_path, cur_change_procedure, **other_kwargs
-    )
+    new_egc = egc_change_func(old_egc, modification_path, cur_change_procedure, **other_kwargs)
 
     if new_egc is None:
         return None, None
