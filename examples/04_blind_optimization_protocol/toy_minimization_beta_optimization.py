@@ -1,14 +1,25 @@
 # Perform optimization in QM9* in a way that SHOULDN'T depend much on the initial choice of beta.
 from mosaics.optimization_protocol import OptimizationProtocol
-from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
 from mosaics.minimized_functions import OrderSlide
-from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
+from mosaics import ExtGraphCompound
 import random
 import numpy as np
+#from mosaics.rdkit_utils import canonical_SMILES_from_tp
 
 max_nhatoms = 9  # Not 15 to cut down on the CPU time.
 
-init_SMILES = "C"
+# Define initial molecule.
+# All replicas are initialized in methane.
+init_ncharges = [6]
+init_adj_matrix = [[0]]
+init_egc = ExtGraphCompound(
+        nuclear_charges=init_ncharges,
+        adjacency_matrix=init_adj_matrix,
+        hydrogen_autofill=True,
+    )
+# With RdKit installed can also be done with:
+#from mosaics.rdkit_utils import SMILES_to_egc
+#init_egc=SMILES_to_egc("C")
 
 possible_elements = ["B", "C", "N", "O", "F", "Si", "P", "S", "Cl", "Br"]
 
@@ -85,7 +96,7 @@ opt_protocol = OptimizationProtocol(
     significant_average_minfunc_change_rel_stddev=16.0,
     subpopulation_propagation_seed=seed,
     greedy_delete_checked_paths=True,
-    init_egc=SMILES_to_egc(init_SMILES),  # saved_candidates_max_difference=None,
+    init_egc=init_egc,  # saved_candidates_max_difference=None,
     num_saved_candidates=40,
 )
 
@@ -93,7 +104,7 @@ for iteration_id in opt_protocol:
     cur_best_cand = opt_protocol.current_best_candidate()
     print("___")
     print("___Best candidate at iteration", iteration_id, ":", cur_best_cand)
-    print("___Best candidate SMILES:", canonical_SMILES_from_tp(cur_best_cand.tp))
+#    print("___Best candidate SMILES:", canonical_SMILES_from_tp(cur_best_cand.tp))
     print(
         "___Beta bounds:", opt_protocol.lower_beta_value, opt_protocol.upper_beta_value
     )
@@ -125,5 +136,13 @@ for iteration_id in opt_protocol:
 print("Final best candidates:")
 for cand_id, candidate in enumerate(opt_protocol.saved_candidates()):
     print("Candidate", cand_id, ":", candidate)
+
+# If you have RdKit installed it draw final candidates.
+try:
+    from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
+except ModuleNotFoundError:
+    quit()
+
+for cand_id, candidate in enumerate(opt_protocol.saved_candidates()):
     png_filename = "best_candidate_" + str(cand_id) + ".png"
     draw_chemgraph_to_file(candidate.tp.chemgraph(), png_filename, file_format="PNG")

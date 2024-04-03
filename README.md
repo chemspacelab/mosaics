@@ -18,6 +18,8 @@ MOSAiCS has the following dependencies:
 - numpy
 - igraph
 - sortedcontainers
+- scipy
+- loky
 
 Additional packages are required to run some example scripts.
 
@@ -67,6 +69,9 @@ Learn to use protocols for tuning beta parameters during optimization.
 
 ### [ChemSpaceSampler](examples/05_chemspacesampler/)
 Showcases the algorithm's ability to explore various regions of the chemical space. For further reading see ["Understanding Representations by Exploring Galaxies in Chemical Space"](https://arxiv.org/abs/2309.09194) published on arXiv.
+
+## :straight_ruler: Tests
+Unfortunately, due to uncertain nature of Monte Carlo trajectories the only way to completely verify correctness of installation is by running a relatively long Monte Carlo calculation with a certain random number generator seed and compare it to the benchmark trajectory. Hence each example script in `examples` with a toy problem function also contains a benchmark `*.log` file to which the output can be compared; such calculations take significantly more time than a typical test. A reference environment for which the benchmarks could be reproduced is found in `examples/benchmark_env.yml` (in case, for example, an environment update changes the way random number generation works). Reproducing output of the example in `examples/01_toy_minimization` should be enough to verify installation.
 
 ## :handshake: Contributing
 We welcome contributions and feedback from the community. If you encounter any issues or have suggestions for improvements, please [open an issue](https://github.com/chemspacelab/mosaics/issues) on GitHub.

@@ -1,6 +1,5 @@
 ___
 ___Best candidate at iteration 1 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -48.81076431274414 496.8924796020279 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -48.81076431274414 496.8924796020279 False
@@ -11,7 +10,6 @@ ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 2 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -63.79132843017578 19.644124399865845 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -63.79132843017578 19.644124399865845 False
@@ -22,7 +20,6 @@ ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 3 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -65.00724029541016 5.868084708134494 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -65.00724029541016 5.868084708134494 False
@@ -33,7 +30,6 @@ ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 4 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -65.50672149658203 4.616450675354212 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -65.50672149658203 4.616450675354212 False
@@ -44,7 +40,6 @@ ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 5 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -65.85262680053711 2.954704989760271 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -65.85262680053711 2.954704989760271 False
@@ -55,7 +50,6 @@ ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 6 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -66.04836654663086 1.194300098146586 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -66.04836654663086 1.194300098146586 False
@@ -66,7 +60,6 @@ ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 7 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -66.17509841918945 1.472666403940342 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -66.17509841918945 1.472666403940342 False
@@ -77,7 +70,6 @@ ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 8 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -66.33900833129883 1.9408084824109297 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -66.33900833129883 1.9408084824109297 False
@@ -88,7 +80,6 @@ ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 9 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 1.0 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -66.39839172363281 1.412374679947572 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -66.39839172363281 1.412374679947572 False
@@ -99,7 +90,6 @@ ___Largest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___Smallest beta ids: [  64   65   66 ... 1085 1086 1087]
 ___
 ___Best candidate at iteration 10 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.44423397347428756 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -66.43794250488281 0.37401433390800787 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -66.43794250488281 0.37401433390800787 True
@@ -117,7 +107,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 11 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.44423397347428756 1.0
 ___Largest real beta minimized function mean, effective std, and equilibration: -69.121337890625 3.015705324990778 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -59.06256103515625 9.946447782603101 False
@@ -135,7 +124,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 12 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.44423397347428756 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -69.20703125 2.8305410950249423 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -58.1658935546875 6.755723504682257 False
@@ -153,7 +141,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 13 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.44423397347428756 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -72.24298095703125 3.5457161846300718 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -54.4356689453125 6.749106948550031 False
@@ -171,7 +158,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 14 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.4440815982192399 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -72.55303955078125 0.8839232622127529 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -54.61920166015625 4.994037864323053 True
@@ -189,7 +175,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 15 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.4440815982192399 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -72.65362548828125 1.243434352214057 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -53.13372802734375 8.309926473588362 False
@@ -207,7 +192,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 16 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.23286949640889412 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -72.797119140625 1.0909545050907183 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -53.2525634765625 4.524625473962067 True
@@ -225,7 +209,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 17 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.23286949640889412 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -73.13330078125 0.9043538217760444 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -46.64080810546875 15.504183227802232 False
@@ -243,7 +226,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 18 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.23286949640889412 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -73.2171630859375 0.9596777621501539 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -44.53509521484375 7.441829655333646 False
@@ -261,7 +243,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 19 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.23286949640889412 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -73.30010986328125 0.904565627037394 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -43.499267578125 8.095331339472747 False
@@ -279,7 +260,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 20 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.16168487348782168 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -73.38885498046875 1.2402873350835788 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -42.7088623046875 7.884958842671441 True
@@ -297,7 +277,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 21 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.16168487348782168 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -73.53912353515625 0.9266295590506601 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -40.31085205078125 11.939719178605063 False
@@ -315,7 +294,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 22 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.16168487348782168 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -73.65863037109375 0.8664150062166724 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -39.0521240234375 6.079787235427237 False
@@ -333,7 +311,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 23 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.12661149178797368 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -73.63177490234375 0.8877032356202379 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -38.58843994140625 5.267209479671711 True
@@ -351,7 +328,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 24 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.08122470154910184 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -73.667236328125 0.9533631074252923 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -37.76593017578125 8.414773002527564 True
@@ -369,7 +345,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 25 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.08122470154910184 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -73.8876953125 1.2614949975748022 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -35.5028076171875 10.575285041520708 False
@@ -387,7 +362,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 26 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.08122470154910184 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.07391357421875 0.8792586912713161 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -34.79345703125 5.78315926032419 True
@@ -405,7 +379,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 27 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.08122470154910184 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.11431884765625 1.2856102231464888 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -34.2864990234375 6.660609219269208 True
@@ -423,7 +396,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 28 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.27423095703125 1.1143522765816167 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -33.72991943359375 5.281482194841067 True
@@ -441,7 +413,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 29 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.375244140625 1.2040869100132408 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -33.1021728515625 8.424960333846807 True
@@ -459,7 +430,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 30 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.44677734375 0.9237186939679946 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.59820556640625 6.923101363892899 True
@@ -477,7 +447,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 31 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.33868408203125 0.7222270618993859 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.518310546875 8.301730414483227 True
@@ -495,7 +464,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 32 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.42376708984375 0.6984762159706895 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.345458984375 5.803120253914827 True
@@ -513,7 +481,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 33 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.581298828125 0.6383074265975678 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -31.8070068359375 6.793741911573605 True
@@ -531,7 +498,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 34 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.45611572265625 0.5779994106487715 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.36688232421875 5.82840723985533 True
@@ -549,7 +515,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 35 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.54278564453125 0.60774345103807 False
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.2315673828125 6.462678944454778 True
@@ -567,7 +532,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 36 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.532958984375 0.6356964329253267 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.35894775390625 5.553642485833813 True
@@ -585,7 +549,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 37 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.48748779296875 0.6574041118250682 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.60455322265625 6.777588572188974 True
@@ -603,7 +566,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 38 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.4893798828125 0.5717412740144103 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.63427734375 6.731754085045252 True
@@ -621,7 +583,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 39 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.51373291015625 0.743758456398469 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -33.13079833984375 6.571913570593793 True
@@ -639,7 +600,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 40 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.51116943359375 0.7685762472654992 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.70947265625 6.032189804935968 True
@@ -657,7 +617,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 41 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.476318359375 0.898537273671902 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.63470458984375 6.168720743096415 True
@@ -675,7 +634,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 42 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.48687744140625 0.8098828640765159 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.35894775390625 7.517877491009904 True
@@ -693,7 +651,6 @@ ___Smallest beta ids: [1024 1025 1026 1027 1028 1029 1030 1031 1032 1033 1034 10
  1080 1081 1082 1083 1084 1085 1086 1087]
 ___
 ___Best candidate at iteration 43 : (CandidateCompound,func_val:-76,ChemGraph:35@7:35@7:35@7:35@7:35@7:35@8:35@8:16@8:15)
-___Best candidate SMILES: BrP(Br)S(Br)(Br)(Br)(Br)Br
 ___Beta bounds: 0.03988089172757951 3.1609734803264744
 ___Largest real beta minimized function mean, effective std, and equilibration: -74.53515625 0.8388893559716323 True
 ___Smallest real beta minimized function mean, effective std, and equilibration: -32.1553955078125 7.073032256480137 True
