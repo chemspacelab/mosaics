@@ -1,26 +1,27 @@
-from ..rdkit_utils import chemgraph_to_canonical_rdkit
-from ..xyz2graph import chemgraph_from_ncharges_coords
-from ..misc_procedures import (
-    weighted_array,
-    checked_environ_val,
-    repeated_dict,
-    all_None_dict,
-    any_element_in_list,
-)
-from ..valence_treatment import InvalidAdjMat
-import numpy as np
-from ..data import room_T, conversion_coefficient
 import copy
+
+import numpy as np
 
 # Morfeus - used for coordinate generation.
 from morfeus.conformer import ConformerEnsemble
+from rdkit import RDLogger
+from xtb.interface import Calculator
 
 # xtb code - used to get HOMO-LUMO gap, solvation energy, and dipole for Morfeus-generated conformers.
-from xtb.libxtb import VERBOSITY_MUTED, VERBOSITY_MINIMAL, VERBOSITY_FULL
-from xtb.interface import Calculator
+from xtb.libxtb import VERBOSITY_FULL, VERBOSITY_MINIMAL, VERBOSITY_MUTED
 from xtb.utils import get_method, get_solvent
 
-from rdkit import RDLogger
+from ..data import conversion_coefficient, room_T
+from ..misc_procedures import (
+    all_None_dict,
+    any_element_in_list,
+    checked_environ_val,
+    repeated_dict,
+    weighted_array,
+)
+from ..rdkit_utils import chemgraph_to_canonical_rdkit
+from ..valence_treatment import InvalidAdjMat
+from ..xyz2graph import chemgraph_from_ncharges_coords
 
 RDLogger.DisableLog("rdApp.*")
 
@@ -77,9 +78,7 @@ def morfeus_coord_info_from_tp(
 
     if coord_validity_check:
         try:
-            coord_based_cg = chemgraph_from_ncharges_coords(
-                nuclear_charges, min_coordinates
-            )
+            coord_based_cg = chemgraph_from_ncharges_coords(nuclear_charges, min_coordinates)
         except InvalidAdjMat:
             return output
         if coord_based_cg != cg:
@@ -89,9 +88,7 @@ def morfeus_coord_info_from_tp(
         output["coordinates"] = all_coordinates
         output["rdkit_energy"] = energies
         output["rdkit_degeneracy"] = conformers.get_degeneracies()
-        output["rdkit_Boltzmann"] = conformers.boltzmann_weights(
-            temperature=temperature
-        )
+        output["rdkit_Boltzmann"] = conformers.boltzmann_weights(temperature=temperature)
     else:
         output["coordinates"] = all_coordinates[min_en_id]
         output["rdkit_energy"] = min_en
@@ -141,11 +138,7 @@ def xTB_singlepoint_res(*args, **kwargs):
 
 
 def xTB_quants(
-    coordinates,
-    nuclear_charges,
-    quantities=[],
-    solvent=None,
-    **other_xTB_singlepoint_res
+    coordinates, nuclear_charges, quantities=[], solvent=None, **other_xTB_singlepoint_res
 ):
     res = xTB_singlepoint_res(
         coordinates, nuclear_charges, solvent=solvent, **other_xTB_singlepoint_res
@@ -230,20 +223,14 @@ def morfeus_FF_xTB_code_quants_weighted(
     coordinates = coord_info["coordinates"]
     if coordinates is None:
         return None
-    conf_weights = cut_weights(
-        coord_info["rdkit_Boltzmann"], remaining_rho=remaining_rho
-    )
+    conf_weights = cut_weights(coord_info["rdkit_Boltzmann"], remaining_rho=remaining_rho)
     ncharges = coord_info["nuclear_charges"]
     output = repeated_dict(quantities, 0.0)
     for conf_coords, weight in zip(coord_info["coordinates"], conf_weights):
         if weight is not None:
-            res = xTB_quants(
-                conf_coords, ncharges, quantities=quantities, **xTB_quants_kwargs
-            )
+            res = xTB_quants(conf_coords, ncharges, quantities=quantities, **xTB_quants_kwargs)
             if res is None:
-                print(
-                    "###PROBLEMATIC MOLECULE for xTB", coord_info["canon_rdkit_SMILES"]
-                )
+                print("###PROBLEMATIC MOLECULE for xTB", coord_info["canon_rdkit_SMILES"])
                 return None
             for quant in quantities:
                 if quant == num_eval_name:

@@ -1,17 +1,21 @@
+import copy
+
+import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from rdkit.Chem.rdmolops import GetAdjacencyMatrix
 from rdkit.Chem.rdmolfiles import MolToSmiles
+from rdkit.Chem.rdmolops import GetAdjacencyMatrix
+
+from .ext_graph_compound import ExtGraphCompound
 from .misc_procedures import int_atom_checked
+from .test_utils import print_to_separate_file_wprefix
 from .valence_treatment import (
     ChemGraph,
-    default_valence,
     canonically_permuted_ChemGraph,
+    default_valence,
+    split_chemgraph_into_connected_fragments,
     str2ChemGraph,
 )
-from .ext_graph_compound import ExtGraphCompound
-import copy
-import numpy as np
 
 
 class RdKitFailure(Exception):
@@ -67,6 +71,7 @@ rdkit_bond_type = {
     3: Chem.rdchem.BondType.TRIPLE,
     4: Chem.rdchem.BondType.QUADRUPLE,
 }
+
 
 # TODO in later stages combine with graph_to_rdkit function in G2S.
 def egc_to_rdkit(egc):
@@ -179,10 +184,22 @@ def chemgraph_to_rdkit(
         return mol
 
 
-def chemgraph_to_canonical_rdkit(cg, SMILES_only=False):
+def chemgraph_to_canonical_rdkit(
+    cg: ChemGraph,
+    SMILES_only=False,
+    print_all_SMILES_prefix=None,
+    print_all_SMILES_suffix=".txt",
+):
     canon_cg = canonically_permuted_ChemGraph(cg)
 
     canon_rdkit, canon_SMILES = chemgraph_to_rdkit(canon_cg, include_SMILES=True)
+
+    if print_all_SMILES_prefix is not None:
+        print_to_separate_file_wprefix(
+            canon_SMILES,
+            print_all_SMILES_prefix,
+            print_file_suffix=print_all_SMILES_suffix,
+        )
 
     if SMILES_only:
         return canon_SMILES
@@ -201,14 +218,15 @@ rdkit_coord_optimizer = {
 }
 
 
-def RDKit_FF_optimize_coords(
-    mol, coord_optimizer, num_attempts=1, corresponding_cg=None
-):
-    try:
-        AllChem.EmbedMolecule(mol)
-    except:
-        print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
-        raise FFInconsistent
+def RDKit_FF_optimize_coords(mol, coord_optimizer, num_attempts=1, corresponding_cg=None):
+    AllChem.EmbedMolecule(mol)
+    # KK: If we start working with this again uncomment and add individual exceptions.
+    # try:
+    #    AllChem.EmbedMolecule(mol)
+    # except:
+    #    if VERBOSITY != VERBOSITY_MUTED:
+    #        print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
+    #    raise FFInconsistent
     for _ in range(num_attempts):
         try:
             converged = coord_optimizer(mol)
@@ -238,10 +256,14 @@ def RDKit_FF_min_en_conf(mol, ff_type, num_attempts=1, corresponding_cg=None):
     for seed in range(num_attempts):
         cur_mol = copy.deepcopy(mol)
 
-        try:
-            AllChem.EmbedMolecule(cur_mol, randomSeed=seed)
-        except:
-            print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
+        AllChem.EmbedMolecule(cur_mol, randomSeed=seed)
+        #   KK: If we start working with this again uncomment and add individual exceptions.
+        #        try:
+        #            AllChem.EmbedMolecule(cur_mol, randomSeed=seed)
+        #        except:
+        #            if VERBOSITY != VERBOSITY_MUTED:
+        #                print("#PROBLEMATIC_EMBED_MOLECULE:", corresponding_cg)
+        #            raise RdKitFailure
 
         args = (cur_mol,)
 
@@ -252,18 +274,17 @@ def RDKit_FF_min_en_conf(mol, ff_type, num_attempts=1, corresponding_cg=None):
             ff = rdkit_ff_creator[ff_type](*args)
         except ValueError:
             cur_en = None
-        try:
-            converted = ff.Minimize()
-            cur_en = ff.CalcEnergy()
-        except:
-            raise FFInconsistent
+        # TODO: If we start working on this again add exceptions here.
+        # try:
+        converted = ff.Minimize()
+        cur_en = ff.CalcEnergy()
+        # except:
+        #    raise FFInconsistent
         if converted != 0:
             continue
         try:
             cur_coords = np.array(np.array(cur_mol.GetConformer().GetPositions()))
-            cur_nuclear_charges = np.array(
-                [atom.GetAtomicNum() for atom in cur_mol.GetAtoms()]
-            )
+            cur_nuclear_charges = np.array([atom.GetAtomicNum() for atom in cur_mol.GetAtoms()])
         except ValueError:
             cur_coords = None
             cur_nuclear_charges = None
@@ -280,14 +301,46 @@ def RDKit_FF_min_en_conf(mol, ff_type, num_attempts=1, corresponding_cg=None):
     return min_coords, min_nuclear_charges, min_en
 
 
-# More procedures for MMFF coordinates.
+# For generating MMFF94 coordinates corresponding to different graph objects.
+# More reliable versions that check the coordinates make sense are available in xyz2graph module.
+def chemgraph_to_canonical_rdkit_wcoords_no_check(
+    cg, ff_type="MMFF", num_attempts=1, pick_minimal_conf=False
+):
+    """
+    Creates an rdkit Molecule object whose heavy atoms are canonically ordered along with coordinates. See xyz2graph for version that also checks they make sense.
+    cg : ChemGraph input chemgraph object
+    ff_type : which forcefield to use; currently MMFF and UFF are available
+    num_attempts : how many times the optimization is attempted
+    output : RDKit molecule, indices of the heavy atoms, indices of heavy atoms to which a given hydrogen is connected,
+    SMILES generated from the canonical RDKit molecules, and the RDKit's coordinates
+    """
+    (
+        mol,
+        canon_SMILES,
+    ) = chemgraph_to_canonical_rdkit(cg)
+
+    if pick_minimal_conf:
+        rdkit_coords, _, _ = RDKit_FF_min_en_conf(
+            mol, ff_type, num_attempts=num_attempts, corresponding_cg=cg
+        )
+    else:
+        RDKit_FF_optimize_coords(
+            mol,
+            rdkit_coord_optimizer[ff_type],
+            num_attempts=num_attempts,
+            corresponding_cg=cg,
+        )
+        rdkit_coords = np.array(mol.GetConformer().GetPositions())
+
+    return mol, canon_SMILES, rdkit_coords
 
 
-def egc_with_coords(
+def egc_with_coords_no_check(
     egc, coords=None, ff_type="MMFF", num_attempts=1, pick_minimal_conf=False
 ):
     """
     Create a copy of an ExtGraphCompound object with coordinates. If coordinates are set to None they are generated with RDKit.
+    See xyz2graph for version that also checks they make sense.
     egc : ExtGraphCompound input object
     coords : None or np.array
     ff_type : str type of force field used; MMFF and UFF are available
@@ -295,7 +348,11 @@ def egc_with_coords(
     """
     output = copy.deepcopy(egc)
     if coords is None:
-        (_, canon_SMILES, coords,) = chemgraph_to_canonical_rdkit_wcoords(
+        (
+            _,
+            canon_SMILES,
+            coords,
+        ) = chemgraph_to_canonical_rdkit_wcoords_no_check(
             egc.chemgraph,
             ff_type=ff_type,
             num_attempts=num_attempts,
@@ -312,16 +369,16 @@ def egc_with_coords(
     return output
 
 
-def coord_info_from_tp(tp, **kwargs):
+def coord_info_from_tp_no_check(tp, **kwargs):
     """
-    Coordinates corresponding to a TrajectoryPoint object
+    Coordinates corresponding to a TrajectoryPoint object. See xyz2graph for version that also checks they make sense.
     tp : TrajectoryPoint object
     num_attempts : number of attempts taken to generate MMFF coordinates (introduced because for QM9 there is a ~10% probability that the coordinate generator won't converge)
     **kwargs : keyword arguments for the egc_with_coords procedure
     """
     output = {"coordinates": None, "canon_rdkit_SMILES": None, "nuclear_charges": None}
     try:
-        egc_wc = egc_with_coords(tp.egc, **kwargs)
+        egc_wc = egc_with_coords_no_check(tp.egc, **kwargs)
         output["coordinates"] = egc_wc.coordinates
         output["canon_rdkit_SMILES"] = egc_wc.additional_data["canon_rdkit_SMILES"]
         output["nuclear_charges"] = egc_wc.true_ncharges()
@@ -338,3 +395,20 @@ def ChemGraphStr_to_SMILES(chemgraph_str):
 
 def canonical_SMILES_from_tp(tp):
     return chemgraph_to_canonical_rdkit(tp.egc.chemgraph, SMILES_only=True)
+
+
+def canonical_connected_rdkit_list_from_tp(tp, SMILES_only=False):
+    """
+    Returns rdkit (with SMILES) of all connected fragments.
+    """
+    connected_chemgraphs = split_chemgraph_into_connected_fragments(tp.egc.chemgraph)
+    return [
+        chemgraph_to_canonical_rdkit(cg, SMILES_only=SMILES_only) for cg in connected_chemgraphs
+    ]
+
+
+def canonical_connected_SMILES_list_from_tp(tp):
+    """
+    Returns SMILES of all connected fragments.
+    """
+    return canonical_connected_rdkit_list_from_tp(tp, SMILES_only=True)

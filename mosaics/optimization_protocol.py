@@ -3,11 +3,13 @@
 # I tried making the algorithm as barebones as possible, hopefully making something that would break less.
 # TODO: Double-check whether it is necessary to account for block-averaging?
 # TODO: Compare change of the average to RMSE of the average and not variable STDDEV?
-from .random_walk import default_minfunc_name
+from copy import deepcopy
+
+import numpy as np
+
 from .beta_choice import gen_exp_beta_array
 from .distributed_random_walk import DistributedRandomWalk
-from copy import deepcopy
-import numpy as np
+from .random_walk import default_minfunc_name
 
 
 class OptimizationProtocol:
@@ -44,9 +46,10 @@ class OptimizationProtocol:
         init_egcs=None,
         init_egc=None,
         saved_candidates_max_difference=None,
-        num_saved_candidates=1,
+        num_saved_candidates=None,
         terminated_worker_max_restart_number=0,
         terminated_worker_num_extra_rng_calls=1,
+        debug=False,
     ):
         """
         A very basic protocol for optimizing beta parameters during the simulation.
@@ -93,9 +96,8 @@ class OptimizationProtocol:
         self.num_saved_candidates = num_saved_candidates
         self.save_random_walk_logs = save_random_walk_logs
         self.terminated_worker_max_restart_number = terminated_worker_max_restart_number
-        self.terminated_worker_num_extra_rng_calls = (
-            terminated_worker_num_extra_rng_calls
-        )
+        self.terminated_worker_num_extra_rng_calls = terminated_worker_num_extra_rng_calls
+        self.debug = debug
         self.init_random_walk(
             init_egc=init_egc,
             init_egcs=init_egcs,
@@ -146,12 +148,8 @@ class OptimizationProtocol:
     def get_initial_average(self, beta_ids):
         init_av_minfunc = 0.0
         for beta_id in beta_ids:
-            considered_tp = self.distributed_random_walk.current_trajectory_points[
-                beta_id
-            ]
-            init_av_minfunc += considered_tp.calculated_data[
-                self.minimized_function_name
-            ]
+            considered_tp = self.distributed_random_walk.current_trajectory_points[beta_id]
+            init_av_minfunc += considered_tp.calculated_data[self.minimized_function_name]
         init_av_minfunc /= len(beta_ids)
         return init_av_minfunc
 
@@ -182,9 +180,7 @@ class OptimizationProtocol:
             (self.iter_tot_num_global_steps,)
         )
 
-    def init_random_walk(
-        self, init_egc=None, init_egcs=None, subpopulation_propagation_seed=None
-    ):
+    def init_random_walk(self, init_egc=None, init_egcs=None, subpopulation_propagation_seed=None):
         """
         Initialize RandomWalk or DistributedRandomWalk object used for population propagation.
         """
@@ -216,6 +212,7 @@ class OptimizationProtocol:
                 save_logs=self.save_random_walk_logs,
                 terminated_worker_max_restart_number=self.terminated_worker_max_restart_number,
                 terminated_worker_num_extra_rng_calls=self.terminated_worker_num_extra_rng_calls,
+                debug=self.debug,
             )
         else:
             raise Exception("Using non-distributed random walks not implemented yet.")
@@ -269,9 +266,7 @@ class OptimizationProtocol:
             self.save_temp_propagation_data(propagation_counter)
 
     def average_tempering_neighbor_acceptance_probability(self):
-        return np.mean(
-            self.distributed_random_walk.av_tempering_neighbors_acceptance_probability
-        )
+        return np.mean(self.distributed_random_walk.av_tempering_neighbors_acceptance_probability)
 
     def replica_eff_std(self, running_av_minfunc, beta_ids):
         # Calculate effective std of average over a beta value, then readjust to std of individual beta values.
@@ -331,12 +326,8 @@ class OptimizationProtocol:
         attribute.
         """
         log_prob = self.smallest_beta_extrema_rel_prob_log()
-        smallest_beta_too_small = (
-            log_prob < self.target_extrema_smallest_beta_log_prob_interval[0]
-        )
-        smallest_beta_too_large = (
-            log_prob > self.target_extrema_smallest_beta_log_prob_interval[1]
-        )
+        smallest_beta_too_small = log_prob < self.target_extrema_smallest_beta_log_prob_interval[0]
+        smallest_beta_too_large = log_prob > self.target_extrema_smallest_beta_log_prob_interval[1]
         beta_changed = smallest_beta_too_small or smallest_beta_too_large
         if beta_changed:
             beta_change_multiplier = self.randomized_beta_change_multiplier()
@@ -365,17 +356,14 @@ class OptimizationProtocol:
         drw.worst_accepted_candidates = None
         drw.minfunc_val_log = None
 
-    def replicas_equilibrated(
-        self, av_minfunc_log, std_minfunc, signif_prop_coeff, beta_ids
-    ):
+    def replicas_equilibrated(self, av_minfunc_log, std_minfunc, signif_prop_coeff, beta_ids):
         latest_av_minfunc = av_minfunc_log[-1]
         previous_av_minfunc = av_minfunc_log[-2]
         step_num_clones_normalization = np.sqrt(
             float(self.iter_tot_num_global_steps * len(beta_ids))
         )
         return (
-            np.abs(previous_av_minfunc - latest_av_minfunc)
-            * step_num_clones_normalization
+            np.abs(previous_av_minfunc - latest_av_minfunc) * step_num_clones_normalization
             < signif_prop_coeff * std_minfunc
         )
 
@@ -396,9 +384,7 @@ class OptimizationProtocol:
         )
 
     def update_logs(self):
-        self.largest_beta_iteration_av_minfunc_log.append(
-            self.largest_beta_iteration_av_minfunc()
-        )
+        self.largest_beta_iteration_av_minfunc_log.append(self.largest_beta_iteration_av_minfunc())
         self.smallest_beta_iteration_av_minfunc_log.append(
             self.smallest_beta_iteration_av_minfunc()
         )
@@ -422,9 +408,7 @@ class OptimizationProtocol:
         else:
             smallest_beta_changed = False
         beta_changed = largest_beta_changed or smallest_beta_changed
-        self.equilibrated = (
-            self.largest_beta_equilibrated and self.smallest_beta_equilibrated
-        )
+        self.equilibrated = self.largest_beta_equilibrated and self.smallest_beta_equilibrated
         self.best_candidate_log.append(deepcopy(self.current_best_candidate()))
         self.new_best_candidate_obtained = (
             self.best_candidate_log[-1] != self.best_candidate_log[-2]

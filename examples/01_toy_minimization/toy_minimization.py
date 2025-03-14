@@ -1,16 +1,10 @@
-# Script with an example of optimizing a toy problem in chemical graph space.
-# These imports were used for the original bmapqml repository.
-# from bmapqml.chemxpl.valence_treatment import ChemGraph
-# from bmapqml.chemxpl.random_walk import RandomWalk, gen_exp_beta_array
-# from bmapqml.chemxpl import ExtGraphCompound
-# from bmapqml.chemxpl.minimized_functions import OrderSlide
-# These imports are used for the MOSAiCS repository
-from mosaics.beta_choice import gen_exp_beta_array
-from mosaics import ExtGraphCompound, RandomWalk
-from mosaics.minimized_functions import OrderSlide
-
 import random
+
 import numpy as np
+
+from mosaics import ExtGraphCompound, RandomWalk
+from mosaics.beta_choice import gen_exp_beta_array
+from mosaics.minimized_functions import OrderSlide
 
 random.seed(1)
 np.random.seed(1)
@@ -44,9 +38,9 @@ randomized_change_params = {
     "not_protonated": [16],  # S not protonated
 }
 global_change_params = {
-    "num_parallel_tempering_tries": 5,
-    "num_genetic_tries": 5,
-    "prob_dict": {"simple": 0.5, "genetic": 0.25, "tempering": 0.25},
+    "num_parallel_tempering_attempts": 5,
+    "num_crossover_attempts": 5,
+    "prob_dict": {"simple": 0.5, "crossover": 0.25, "tempering": 0.25},
 }
 
 # All replicas are initialized in methane.
@@ -79,8 +73,8 @@ rw = RandomWalk(
 
 for MC_step in range(num_MC_steps):
     rw.global_random_change(**global_change_params)
-    if MC_step % 200 == 0:
-        print(MC_step, rw.cur_tps)
+    print(MC_step, rw.cur_tps)
+    print("BEST VAL:", rw.saved_candidates[0].func_val)
 
 rw.make_restart()
 

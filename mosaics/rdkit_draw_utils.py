@@ -1,34 +1,33 @@
 # Collection of routines that use rdkit.Chem.Draw for easy display of objects used throughout the chemxpl module.
 # TODO PROPER ABBREVIATION SUPPORT! MAY CRASH WITH HIGHLIGHTS!
-from rdkit import Chem
-from rdkit.Chem.Draw import rdMolDraw2D
-from rdkit.Chem import RemoveHs, rdAbbreviations
-from .rdkit_utils import chemgraph_to_rdkit, SMILES_to_egc, rdkit_bond_type
+import itertools
+import os
+import subprocess
 from copy import deepcopy
-from .valence_treatment import ChemGraph, sorted_tuple
-import itertools, os, subprocess
+
+from rdkit.Chem import RemoveHs, rdAbbreviations
+from rdkit.Chem.Draw import rdMolDraw2D
+
+from .ext_graph_compound import ExtGraphCompound
+from .misc_procedures import str_atom_corr
 from .modify import (
     FragmentPair,
     add_heavy_atom_chain,
-    remove_heavy_atom,
-    replace_heavy_atom,
     change_bond_order,
+    change_bond_order_valence,
     change_valence,
     change_valence_add_atoms,
     change_valence_remove_atoms,
-    change_bond_order_valence,
+    crossover_outcomes,
     frag_size_status_list,
     matching_frag_size_status_list,
-    cross_couple_outcomes,
+    remove_heavy_atom,
+    replace_heavy_atom,
 )
-from .random_walk import (
-    TrajectoryPoint,
-    full_change_list,
-    egc_change_func,
-)
-from .ext_graph_compound import ExtGraphCompound
-from .misc_procedures import str_atom_corr
+from .random_walk import TrajectoryPoint, egc_change_func, full_change_list
+from .rdkit_utils import SMILES_to_egc, chemgraph_to_rdkit, rdkit_bond_type
 from .utils import mkdir
+from .valence_treatment import ChemGraph, sorted_tuple
 
 # Some colors that I think look good on print.
 RED = (1.0, 0.0, 0.0)
@@ -203,9 +202,7 @@ class ChemGraphDrawing:
             self.highlight_bonds(self.highlightBondTuples, self.highlightBondTupleColor)
 
         if self.highlight_connecting_bonds:
-            self.highlight_bonds_connecting_atoms(
-                self.highlightAtoms, self.highlightAtomColor
-            )
+            self.highlight_bonds_connecting_atoms(self.highlightAtoms, self.highlightAtomColor)
 
         self.post_added_bonds = post_added_bonds
 
@@ -235,9 +232,7 @@ class ChemGraphDrawing:
                 if (ha not in self.highlightAtomRadii) or overwrite:
                     self.highlightAtomRadii[ha] = self.highlightAtomRadius
         if wbonds:
-            self.highlight_bonds_connecting_atoms(
-                atom_ids, highlight_color, overwrite=overwrite
-            )
+            self.highlight_bonds_connecting_atoms(atom_ids, highlight_color, overwrite=overwrite)
 
     def highlight_bonds(self, bond_tuples, highlight_color, overwrite=False):
         if highlight_color is None:
@@ -247,9 +242,7 @@ class ChemGraphDrawing:
             if (bt not in self.highlightBondTupleColors) or overwrite:
                 self.highlightBondTupleColors[bt] = highlight_color
 
-    def highlight_bonds_connecting_atoms(
-        self, atom_ids, highlight_color, overwrite=False
-    ):
+    def highlight_bonds_connecting_atoms(self, atom_ids, highlight_color, overwrite=False):
         connecting_bts = self.connecting_bond_tuples(atom_ids)
         self.highlight_bonds(connecting_bts, highlight_color, overwrite=overwrite)
 
@@ -387,13 +380,9 @@ class FragmentPairDrawing(ChemGraphDrawing):
             self.connection_tuples += tuples
 
         if self.highlight_fragment_boundary is not None:
-            self.highlight_bonds(
-                self.connection_tuples, self.highlight_fragment_boundary
-            )
+            self.highlight_bonds(self.connection_tuples, self.highlight_fragment_boundary)
         if self.highlight_fragment_colors is not None:
-            for frag_id, fragment_highlight in enumerate(
-                self.highlight_fragment_colors
-            ):
+            for frag_id, fragment_highlight in enumerate(self.highlight_fragment_colors):
                 vertices = fragment_pair.get_sorted_vertices(frag_id)
                 if fragment_highlight is not None:
                     self.highlight_atoms(vertices, fragment_highlight, wbonds=True)
@@ -457,9 +446,7 @@ class ModificationPathIllustration(ChemGraphDrawing):
             res_struct_id = self.modification_path[1][1]
 
         for changed_atom in self.changed_atoms():
-            for i, extra_valence_ids in enumerate(
-                self.chemgraph.resonance_structure_inverse_map
-            ):
+            for i, extra_valence_ids in enumerate(self.chemgraph.resonance_structure_inverse_map):
                 if changed_atom in extra_valence_ids:
                     affected_resonance_region = i
 
@@ -643,8 +630,7 @@ def all_possible_resonance_struct_adj(obj):
     else:
         cg = obj.chemgraph
     iterators = [
-        list(range(len(res_struct_orders)))
-        for res_struct_orders in cg.resonance_structure_orders
+        list(range(len(res_struct_orders))) for res_struct_orders in cg.resonance_structure_orders
     ]
     if len(iterators) == 0:
         return [None]
@@ -666,20 +652,14 @@ def check_filename_suffix(filename_suffix, kwargs):
     return drawing_file_suffix[default_drawing_format]
 
 
-def draw_all_possible_resonance_structures(
-    obj, filename_prefix, filename_suffix=None, **kwargs
-):
+def draw_all_possible_resonance_structures(obj, filename_prefix, filename_suffix=None, **kwargs):
     """
     Draw variants of an object with all possible resonance structures.
     """
     filename_suffix_checked = check_filename_suffix(filename_suffix, kwargs)
 
-    for rsa_id, resonance_struct_adj in enumerate(
-        all_possible_resonance_struct_adj(obj)
-    ):
-        cur_drawing = ObjDrawing(
-            obj, resonance_struct_adj=resonance_struct_adj, **kwargs
-        )
+    for rsa_id, resonance_struct_adj in enumerate(all_possible_resonance_struct_adj(obj)):
+        cur_drawing = ObjDrawing(obj, resonance_struct_adj=resonance_struct_adj, **kwargs)
         cur_drawing.save(filename_prefix + str(rsa_id) + filename_suffix_checked)
 
 
@@ -719,15 +699,11 @@ def draw_all_modification_possibilities(
 
     filename_suffix_checked = check_filename_suffix(filename_suffix, kwargs)
 
-    for counter, full_mod_path in enumerate(
-        all_mod_paths(cg, **randomized_change_params)
-    ):
+    for counter, full_mod_path in enumerate(all_mod_paths(cg, **randomized_change_params)):
         try:
             mpi = creator(cg, full_mod_path[1:], full_mod_path[0], **creator_kwargs)
         except NoAfter:
-            mpi = ModificationPathIllustration(
-                cg, full_mod_path[1:], full_mod_path[0], **kwargs
-            )
+            mpi = ModificationPathIllustration(cg, full_mod_path[1:], full_mod_path[0], **kwargs)
         mpi.save(filename_prefix + str(counter) + filename_suffix_checked)
 
     if dump_directory is not None:
@@ -735,27 +711,20 @@ def draw_all_modification_possibilities(
 
 
 def draw_all_possible_fragment_pairs(
-    cg: ChemGraph,
-    filename_prefix="fragment_pair_",
-    max_num_affected_bonds=3,
-    **other_kwargs
+    cg: ChemGraph, filename_prefix="fragment_pair_", max_num_affected_bonds=3, **other_kwargs
 ):
     for origin_point_id, origin_point in enumerate(cg.unrepeated_atom_list()):
         for size_id, (size, _) in enumerate(
-            frag_size_status_list(
-                cg, origin_point, max_num_affected_bonds=max_num_affected_bonds
-            )
+            frag_size_status_list(cg, origin_point, max_num_affected_bonds=max_num_affected_bonds)
         ):
             filename_final_prefix = (
                 filename_prefix + str(origin_point_id) + "_" + str(size_id) + "_"
             )
             cur_frag = FragmentPair(cg, origin_point, neighborhood_size=size)
-            draw_all_possible_resonance_structures(
-                cur_frag, filename_final_prefix, **other_kwargs
-            )
+            draw_all_possible_resonance_structures(cur_frag, filename_final_prefix, **other_kwargs)
 
 
-def draw_all_cross_couplings(
+def draw_all_crossovers(
     cg_pair,
     init_folder_prefix="init_opt_",
     filename_prefixes=["old_", "new_"],
@@ -766,9 +735,7 @@ def draw_all_cross_couplings(
 ):
     init_option = 0
 
-    orig_point_iterators = itertools.product(
-        *[cg.unrepeated_atom_list() for cg in cg_pair]
-    )
+    orig_point_iterators = itertools.product(*[cg.unrepeated_atom_list() for cg in cg_pair])
 
     for origin_points in orig_point_iterators:
         forward_mfssl = matching_frag_size_status_list(
@@ -784,18 +751,14 @@ def draw_all_cross_couplings(
             os.chdir(init_dir)
             old_fragments = [
                 FragmentPair(cg, origin_point, neighborhood_size=chosen_size)
-                for cg, origin_point, chosen_size in zip(
-                    cg_pair, origin_points, chosen_sizes
-                )
+                for cg, origin_point, chosen_size in zip(cg_pair, origin_points, chosen_sizes)
             ]
             for old_frag_id, old_fragment in enumerate(old_fragments):
                 draw_all_possible_resonance_structures(
-                    old_fragment,
-                    filename_prefixes[0] + str(old_frag_id) + "_",
-                    **other_kwargs
+                    old_fragment, filename_prefixes[0] + str(old_frag_id) + "_", **other_kwargs
                 )
             trial_option = 0
-            new_cg_pairs, new_origin_points = cross_couple_outcomes(
+            new_cg_pairs, new_origin_points = crossover_outcomes(
                 cg_pair, chosen_sizes, origin_points
             )
             if new_cg_pairs is None:
@@ -811,11 +774,7 @@ def draw_all_cross_couplings(
                 for new_frag_id, new_fragment in enumerate(new_fragments):
                     draw_all_possible_resonance_structures(
                         new_fragment,
-                        filename_prefixes[1]
-                        + str(trial_option)
-                        + "_"
-                        + str(new_frag_id)
-                        + "_",
+                        filename_prefixes[1] + str(trial_option) + "_" + str(new_frag_id) + "_",
                         **other_kwargs
                     )
                 trial_option += 1

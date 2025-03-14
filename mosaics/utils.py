@@ -1,8 +1,14 @@
-from .ext_graph_compound import ExtGraphCompound
+import bz2
+import pickle
+import subprocess
+
 import numpy as np
 from igraph import Graph
 from sortedcontainers import SortedList
+
+from .ext_graph_compound import ExtGraphCompound
 from .misc_procedures import int_atom, str_atom_corr
+
 
 # Routines for xyz import/export.
 def check_byte(byte_or_str):
@@ -36,12 +42,7 @@ def xyz_string(coordinates, elements=None, nuclear_charges=None, extra_string=""
         elements = [str_atom_corr(charge) for charge in nuclear_charges]
     output = str(len(coordinates)) + "\n" + extra_string
     for atom_coords, element in zip(coordinates, elements):
-        output += (
-            "\n"
-            + element
-            + " "
-            + " ".join([str(atom_coord) for atom_coord in atom_coords])
-        )
+        output += "\n" + element + " " + " ".join([str(atom_coord) for atom_coord in atom_coords])
     return output
 
 
@@ -61,7 +62,6 @@ def write_xyz_file(
 
 
 def read_xyz_file(xyz_input, additional_attributes=["charge"]):
-
     lines = checked_input_readlines(xyz_input)
 
     return read_xyz_lines(lines, additional_attributes=additional_attributes)
@@ -194,10 +194,6 @@ def write_egc2xyz(egc, xyz_file_name, extra_string=""):
 
 # Related to pkl files.
 
-# def str_atom_corr(ncharge):
-#    return canonical_atomtype(str_atom(ncharge))
-import bz2, pickle
-
 compress_fileopener = {True: bz2.BZ2File, False: open}
 pkl_compress_ending = {True: ".pkl.bz2", False: ".pkl"}
 
@@ -234,25 +230,26 @@ def ispklfile(filename: str):
 
 
 # Directory management.
-import subprocess
 
 
 def mktmp(directory=False):
     extra_args = ()
     if directory:
         extra_args = ("-d", *extra_args)
-    return subprocess.check_output(
-        ["mktemp", *extra_args, "-p", "."], text=True
-    ).rstrip("\n")
+    return subprocess.check_output(["mktemp", *extra_args, "-p", "."], text=True).rstrip("\n")
 
 
 def mktmpdir():
     return mktmp(True)
 
 
-def mkdir(dir_name):
-    subprocess.run(["mkdir", "-p", dir_name])
+def run(*cmd):
+    subprocess.run(list(cmd))
+
+
+def mkdir(dirname):
+    run("mkdir", "-p", dirname)
 
 
 def rmdir(dirname):
-    subprocess.run(["rm", "-Rf", dirname])
+    run("rm", "-Rf", dirname)

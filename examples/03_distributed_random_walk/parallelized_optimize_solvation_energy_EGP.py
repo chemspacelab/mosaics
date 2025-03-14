@@ -1,15 +1,14 @@
 # The same example script as in 02_xTB_property_optimization, but capitalizing on distributed parallelism.
 # WARNING: It consumes a lot of CPU time. AND its occasional crash was the reason for the "10^7" crash remark in MOSAiCS paper SI.
-from mosaics.beta_choice import gen_exp_beta_array
-from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
-from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
-from mosaics.minimized_functions.morfeus_quantity_estimates import (
-    LinComb_Morfeus_xTB_code,
-)
-from mosaics.distributed_random_walk import DistributedRandomWalk
-
 import random
+
 import numpy as np
+
+from mosaics.beta_choice import gen_exp_beta_array
+from mosaics.distributed_random_walk import DistributedRandomWalk
+from mosaics.minimized_functions.morfeus_quantity_estimates import LinComb_Morfeus_xTB_code
+from mosaics.rdkit_draw_utils import draw_chemgraph_to_file
+from mosaics.rdkit_utils import SMILES_to_egc, canonical_SMILES_from_tp
 
 random.seed(1)
 np.random.seed(1)
@@ -54,9 +53,9 @@ randomized_change_params = {
     "not_protonated": not_protonated,
 }
 global_step_params = {
-    "num_parallel_tempering_tries": 64,
-    "num_genetic_tries": 16,
-    "prob_dict": {"simple": 0.5, "genetic": 0.25, "tempering": 0.25},
+    "num_parallel_tempering_attempts": 64,
+    "num_crossover_attempts": 16,
+    "prob_dict": {"simple": 0.5, "crossover": 0.25, "tempering": 0.25},
 }
 
 
@@ -84,7 +83,7 @@ drw = DistributedRandomWalk(
     min_function=minimized_function,
     num_processes=NCPUs,
     num_subpopulations=NCPUs,
-    num_internal_global_steps=500,
+    num_internal_global_steps=100,
     global_step_params=global_step_params,
     greedy_delete_checked_paths=True,
     num_saved_candidates=num_saved_candidates,

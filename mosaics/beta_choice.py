@@ -29,10 +29,7 @@ def gen_beta_array(num_greedy_replicas, max_real_beta, *args):
         else:
             cur_beta_delta = args[interval_id * 2]
             num_frac_betas = max(
-                int(
-                    (float(cur_max_rb) - float(cur_min_rb)) / float(cur_beta_delta)
-                    - 0.01
-                ),
+                int((float(cur_max_rb) - float(cur_min_rb)) / float(cur_beta_delta) - 0.01),
                 0,
             )
         added_beta = float(cur_max_rb)
@@ -43,9 +40,7 @@ def gen_beta_array(num_greedy_replicas, max_real_beta, *args):
     return output
 
 
-def gen_inv_lin_beta_array(
-    num_greedy_replicas: int, min_real_beta: float, num_real_betas: int
-):
+def gen_inv_lin_beta_array(num_greedy_replicas: int, min_real_beta: float, num_real_betas: int):
     """
     Generate an array of betas whose inverse changes linearly from 0 (corresponding to the greedy replicas) to a certain value.
     num_greedy_replicas : number of "greedy" replicase
@@ -110,9 +105,7 @@ def gen_exp_beta_array(
     if num_real_betas == 1:
         real_betas = [min_real_beta]
     else:
-        real_betas = np.logspace(
-            log_max_real_beta, log_min_real_beta, num=num_real_betas, base=2
-        )
+        real_betas = np.logspace(log_max_real_beta, log_min_real_beta, num=num_real_betas, base=2)
 
     output += list(real_betas)
     return output

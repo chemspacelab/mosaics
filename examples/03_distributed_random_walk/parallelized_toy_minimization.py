@@ -1,11 +1,13 @@
 # The same example script as in 01_toy_minimization, but capitalizing on distributed parallelism.
-from mosaics.beta_choice import gen_exp_beta_array
-from mosaics import ExtGraphCompound
-from mosaics.minimized_functions import OrderSlide
-from mosaics.distributed_random_walk import DistributedRandomWalk
-import sys
 import random
+import sys
+
 import numpy as np
+
+from mosaics import ExtGraphCompound
+from mosaics.beta_choice import gen_exp_beta_array
+from mosaics.distributed_random_walk import DistributedRandomWalk
+from mosaics.minimized_functions import OrderSlide
 
 random.seed(1)
 np.random.seed(1)
@@ -39,9 +41,7 @@ if cloned_betas:
 else:
     num_exploration_betas = 256
     num_greedy_betas = 16
-betas = gen_exp_beta_array(
-    num_greedy_betas, 8.0, num_exploration_betas, max_real_beta=0.125
-)
+betas = gen_exp_beta_array(num_greedy_betas, 8.0, num_exploration_betas, max_real_beta=0.125)
 
 nbetas = len(betas)
 num_beta_subpopulation_clones = 2
@@ -62,9 +62,9 @@ randomized_change_params = {
     "not_protonated": [16],  # S not protonated
 }
 global_step_params = {
-    "num_parallel_tempering_tries": 64,
-    "num_genetic_tries": 16,
-    "prob_dict": {"simple": 0.5, "genetic": 0.25, "tempering": 0.25},
+    "num_parallel_tempering_attempts": 64,
+    "num_crossover_attempts": 16,
+    "prob_dict": {"simple": 0.5, "crossover": 0.25, "tempering": 0.25},
 }
 
 # All replicas are initialized in methane.

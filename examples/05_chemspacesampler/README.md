@@ -20,7 +20,7 @@ docker build -f Dockerfile -t chemspace ../../..
 NOTE: For some linux systems if docker was not set up with sudo rights you need to do this command first:
 ```sudo chmod 666 /var/run/docker.sock```
 
-⏰ Setting up the docker image will take about 5 minutes. 
+⏰ Setting up the docker image will take about 5 minutes.
 
 3. **Run the Docker container**
 ```bash

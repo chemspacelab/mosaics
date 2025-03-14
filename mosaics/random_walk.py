@@ -10,607 +10,54 @@
 
 # TODO separate MC_step counters for different MC move types?
 
-from sortedcontainers import SortedList, SortedDict
-from .ext_graph_compound import ExtGraphCompound
-from .modify import (
-    atom_replacement_possibilities,
-    atom_removal_possibilities,
-    chain_addition_possibilities,
-    bond_change_possibilities,
-    valence_change_possibilities,
-    add_heavy_atom_chain,
-    remove_heavy_atom,
-    replace_heavy_atom,
-    change_bond_order,
-    change_valence,
-    change_valence_add_atoms,
-    change_valence_remove_atoms,
-    valence_change_add_atoms_possibilities,
-    valence_change_remove_atoms_possibilities,
-    randomized_cross_coupling,
-    egc_valid_wrt_change_params,
-    available_added_atom_bos,
-    gen_atom_removal_possible_hnums,
-    gen_val_change_pos_ncharges,
-    change_bond_order_valence,
-    valence_bond_change_possibilities,
-)
-from .utils import dump2pkl, loadpkl, pkl_compress_ending
-from .valence_treatment import (
-    sorted_tuple,
-    ChemGraph,
-    int_atom_checked,
-    default_valence,
-    canonically_permuted_ChemGraph,
-)
-from .misc_procedures import str_atom_corr
-import random, os
+import operator
+import os
+import random
 from copy import deepcopy
+from types import FunctionType
+from typing import Union
+
 import numpy as np
 from scipy.special import expit
+from sortedcontainers import SortedDict, SortedList
+
+from .crossover import randomized_crossover
+from .elementary_mutations import (
+    add_heavy_atom_chain,
+    available_added_atom_bos,
+    change_valence,
+    gen_atom_removal_possible_hnums,
+    gen_val_change_pos_ncharges,
+    remove_heavy_atom,
+)
+from .ext_graph_compound import egc_valid_wrt_change_params
+from .misc_procedures import VERBOSITY, VERBOSITY_MUTED
+from .modify import (
+    TrajectoryPoint,
+    full_change_list,
+    global_step_traj_storage_label,
+    inverse_procedure,
+    nonglobal_step_traj_storage_label,
+    randomized_change,
+)
+from .trajectory_analysis import ordered_trajectory, ordered_trajectory_ids
+from .utils import dump2pkl, loadpkl, pkl_compress_ending
+from .valence_treatment import (
+    InvalidChange,
+    default_valence,
+    int_atom_checked,
+    sorted_tuple,
+    str2ChemGraph,
+)
 
 default_minfunc_name = "MIN_FUNC_NAME"
-
-# Minimal set of procedures that allow to claim that our MC chains are Markovian.
-# replace_heavy_atom is only necessary for this claim to be valid if we are constrained to molecules with only one heavy atom.
-minimized_change_list = [
-    add_heavy_atom_chain,
-    remove_heavy_atom,
-    replace_heavy_atom,
-    change_bond_order,
-    change_valence,
-]
-
-# Full list of procedures for "simple MC moves" available for simulation.
-full_change_list = [
-    add_heavy_atom_chain,
-    remove_heavy_atom,
-    replace_heavy_atom,
-    change_bond_order,
-    change_valence,
-    change_valence_add_atoms,
-    change_valence_remove_atoms,
-    change_bond_order_valence,
-]
-
-# A list of operations sufficient (?) for exploring chemical space where polyvalent heavy atoms are not protonated.
-valence_ha_change_list = [
-    add_heavy_atom_chain,
-    remove_heavy_atom,
-    replace_heavy_atom,
-    change_bond_order,
-    change_valence_add_atoms,
-    change_valence_remove_atoms,
-    change_bond_order_valence,
-]
-
-stochiometry_conserving_change_list = [change_bond_order, change_valence]
-
-inverse_procedure = {
-    add_heavy_atom_chain: remove_heavy_atom,
-    remove_heavy_atom: add_heavy_atom_chain,
-    replace_heavy_atom: replace_heavy_atom,
-    change_bond_order: change_bond_order,
-    change_valence: change_valence,
-    change_valence_add_atoms: change_valence_remove_atoms,
-    change_valence_remove_atoms: change_valence_add_atoms,
-    change_bond_order_valence: change_bond_order_valence,
-}
-
-change_possibility_label = {
-    add_heavy_atom_chain: "possible_elements",
-    remove_heavy_atom: "possible_elements",
-    replace_heavy_atom: "possible_elements",
-    change_bond_order: "bond_order_changes",
-    change_valence_add_atoms: "possible_elements",
-    change_valence_remove_atoms: "possible_elements",
-    change_valence: None,
-    change_bond_order_valence: "bond_order_valence_changes",
-}
-
-possibility_generator_func = {
-    add_heavy_atom_chain: chain_addition_possibilities,
-    remove_heavy_atom: atom_removal_possibilities,
-    replace_heavy_atom: atom_replacement_possibilities,
-    change_bond_order: bond_change_possibilities,
-    change_valence: valence_change_possibilities,
-    change_valence_add_atoms: valence_change_add_atoms_possibilities,
-    change_valence_remove_atoms: valence_change_remove_atoms_possibilities,
-    change_bond_order_valence: valence_bond_change_possibilities,
-}
-
-
-def egc_change_func(
-    egc_in,
-    modification_path,
-    change_function,
-    chain_addition_tuple_possibilities=False,
-    **other_kwargs
-):
-    if (change_function is change_bond_order) or (
-        change_function is change_bond_order_valence
-    ):
-        atom_id_tuple = modification_path[1][:2]
-        resonance_structure_id = modification_path[1][-1]
-        bo_change = modification_path[0]
-        return change_function(
-            egc_in,
-            *atom_id_tuple,
-            bo_change,
-            resonance_structure_id=resonance_structure_id
-        )
-    if change_function is remove_heavy_atom:
-        removed_atom_id = modification_path[1][0]
-        resonance_structure_id = modification_path[1][1]
-        return change_function(
-            egc_in,
-            removed_atom_id,
-            resonance_structure_id=resonance_structure_id,
-        )
-    if change_function is change_valence:
-        modified_atom_id = modification_path[0]
-        new_valence = modification_path[1][0]
-        resonance_structure_id = modification_path[1][1]
-        return change_function(
-            egc_in,
-            modified_atom_id,
-            new_valence,
-            resonance_structure_id=resonance_structure_id,
-        )
-    if change_function is add_heavy_atom_chain:
-        added_element = modification_path[0]
-        if chain_addition_tuple_possibilities:
-            modified_atom_id = modification_path[1][0]
-            added_bond_order = modification_path[1][1]
-        else:
-            modified_atom_id = modification_path[1]
-            added_bond_order = modification_path[2]
-        return change_function(
-            egc_in,
-            modified_atom_id,
-            [added_element],
-            [added_bond_order],
-        )
-    if change_function is replace_heavy_atom:
-        inserted_atom_type = modification_path[0]
-        replaced_atom_id = modification_path[1][0]
-        resonance_structure_id = modification_path[1][1]
-        return change_function(
-            egc_in,
-            replaced_atom_id,
-            inserted_atom_type,
-            resonance_structure_id=resonance_structure_id,
-        )
-    if change_function is change_valence_add_atoms:
-        added_element = modification_path[0]
-        modified_atom_id = modification_path[1]
-        new_bond_order = modification_path[2]
-        return change_function(egc_in, modified_atom_id, added_element, new_bond_order)
-    if change_function is change_valence_remove_atoms:
-        modified_atom_id = modification_path[1]
-        removed_neighbors = modification_path[2][0]
-        resonance_structure_id = modification_path[2][1]
-        return change_function(
-            egc_in,
-            modified_atom_id,
-            removed_neighbors,
-            resonance_structure_id=resonance_structure_id,
-        )
-    raise Exception()
-
-
-def available_options_prob_norm(dict_in):
-    output = 0.0
-    for i in list(dict_in):
-        if len(dict_in[i]) != 0:
-            output += 1.0
-    return output
-
-
-def random_choice_from_dict(possibilities, choices=None, get_probability_of=None):
-    prob_sum = 0.0
-    corr_prob_choice = {}
-    if choices is None:
-        choices = possibilities.keys()
-    for choice in choices:
-        if (choice not in possibilities) or (len(possibilities[choice]) == 0):
-            continue
-        if isinstance(choices, dict):
-            prob = choices[choice]
-        else:
-            prob = 1.0
-        prob_sum += prob
-        corr_prob_choice[choice] = prob
-    if get_probability_of is None:
-        if len(corr_prob_choice.keys()) == 0:
-            raise Exception(
-                "Something is wrong: encountered a molecule that cannot be changed"
-            )
-        final_choice = random.choices(
-            list(corr_prob_choice.keys()), list(corr_prob_choice.values())
-        )[0]
-        final_prob_log = np.log(corr_prob_choice[final_choice] / prob_sum)
-        return final_choice, possibilities[final_choice], final_prob_log
-    else:
-        return possibilities[get_probability_of], np.log(
-            corr_prob_choice[get_probability_of] / prob_sum
-        )
-
-
-def random_choice_from_nested_dict(
-    possibilities, choices=None, get_probability_of=None
-):
-
-    continue_nested = True
-    cur_possibilities = possibilities
-    prob_log = 0.0
-    cur_choice_prob_dict = choices
-
-    if get_probability_of is None:
-        final_choice = []
-    else:
-        choice_level = 0
-
-    while continue_nested:
-        if not isinstance(cur_possibilities, dict):
-            if isinstance(cur_possibilities, list):
-                prob_log -= np.log(float(len(cur_possibilities)))
-                if get_probability_of is None:
-                    final_choice.append(random.choice(cur_possibilities))
-            break
-        if get_probability_of is None:
-            get_prob_arg = None
-        else:
-            get_prob_arg = get_probability_of[choice_level]
-            choice_level += 1
-        rcfd_res = random_choice_from_dict(
-            cur_possibilities,
-            choices=cur_choice_prob_dict,
-            get_probability_of=get_prob_arg,
-        )
-        prob_log += rcfd_res[-1]
-        cur_possibilities = rcfd_res[-2]
-        cur_choice_prob_dict = None
-        if get_probability_of is None:
-            final_choice.append(rcfd_res[0])
-    if get_probability_of is None:
-        return final_choice, prob_log
-    else:
-        return prob_log
-
-
-def lookup_or_none(dict_in, key):
-    if key in dict_in:
-        return dict_in[key]
-    else:
-        return None
-
-
-def tp_or_chemgraph(tp):
-    if isinstance(tp, ChemGraph):
-        return tp
-    if isinstance(tp, TrajectoryPoint):
-        return tp.chemgraph()
-    raise Exception()
-
-
-global_step_traj_storage_label = "global"
-nonglobal_step_traj_storage_label = "local"
-
-
-class TrajectoryPoint:
-    def __init__(
-        self,
-        egc: ExtGraphCompound or None = None,
-        cg: ChemGraph or None = None,
-        num_visits: int or None = None,
-    ):
-        """
-        This class stores an ExtGraphCompound object along with all the infromation needed to preserve detailed balance of the random walk.
-        egc : ExtGraphCompound object to be stored.
-        cg : ChemGraph object used to define egc if the latter is None
-        num_visits : initial numbers of visits to the trajectory
-        """
-        if egc is None:
-            if cg is not None:
-                egc = ExtGraphCompound(chemgraph=cg)
-        self.egc = egc
-
-        if num_visits is not None:
-            num_visits = deepcopy(num_visits)
-        self.num_visits = num_visits
-
-        self.visit_step_ids = {}
-        self.visit_step_num_ids = {}
-
-        self.first_MC_step_encounter = None
-        self.first_global_MC_step_encounter = None
-
-        self.first_MC_step_acceptance = None
-        self.first_global_MC_step_acceptance = None
-
-        self.first_encounter_replica = None
-        self.first_acceptance_replica = None
-
-        # The last time minimized function was looked up for the trajectory point.
-        self.last_tot_pot_call_global_MC_step = None
-
-        # Information for keeping detailed balance.
-        self.possibility_dict = None
-
-        self.modified_possibility_dict = None
-
-        self.calculated_data = {}
-
-    # TO-DO better way to write this?
-    def init_possibility_info(self, **kwargs):
-        # self.bond_order_change_possibilities is None - to check whether the init_* procedure has been called before.
-        # self.egc.chemgraph.canonical_permutation - to check whether egc.chemgraph.changed() has been called.
-        if self.possibility_dict is None:
-
-            self.egc.chemgraph.init_resonance_structures()
-
-            change_prob_dict = lookup_or_none(kwargs, "change_prob_dict")
-            if change_prob_dict is None:
-                return
-
-            self.possibility_dict = {}
-            for change_procedure in change_prob_dict:
-                cur_subdict = {}
-                pos_label = change_possibility_label[change_procedure]
-                cur_pos_generator = possibility_generator_func[change_procedure]
-                if pos_label is None:
-                    cur_possibilities = cur_pos_generator(self.egc, **kwargs)
-                    if len(cur_possibilities) != 0:
-                        self.possibility_dict[change_procedure] = cur_possibilities
-                else:
-                    pos_label_vals = lookup_or_none(kwargs, pos_label)
-                    if pos_label_vals is None:
-                        raise Exception(
-                            "Randomized change parameter "
-                            + pos_label
-                            + " undefined, leading to problems with "
-                            + str(change_procedure)
-                            + ". Check code input!"
-                        )
-                    for pos_label_val in pos_label_vals:
-                        cur_possibilities = cur_pos_generator(
-                            self.egc, pos_label_val, **kwargs
-                        )
-                        if len(cur_possibilities) != 0:
-                            cur_subdict[pos_label_val] = cur_possibilities
-                    if len(cur_subdict) != 0:
-                        self.possibility_dict[change_procedure] = cur_subdict
-
-            restricted_tps = lookup_or_none(kwargs, "restricted_tps")
-
-            if restricted_tps is not None:
-                self.clear_possibility_info(restricted_tps)
-
-    def clear_possibility_info(self, restricted_tps):
-        for poss_func, poss_dict in self.possibility_dict.items():
-            poss_key_id = 0
-            poss_keys = list(poss_dict.keys())
-            while poss_key_id != len(poss_keys):
-                poss_key = poss_keys[poss_key_id]
-                poss_list = poss_dict[poss_key]
-
-                poss_id = 0
-                while poss_id != len(poss_list):
-                    result = egc_change_func(
-                        self.egc, poss_key, poss_list[poss_id], poss_func
-                    )
-                    if (result is None) or (
-                        TrajectoryPoint(egc=result) in restricted_tps
-                    ):
-                        poss_id += 1
-                    else:
-                        del poss_list[poss_id]
-                if len(poss_list) == 0:
-                    del poss_dict[poss_key]
-                    del poss_keys[poss_key_id]
-                else:
-                    poss_key_id += 1
-
-    def possibilities(self, **kwargs):
-        self.init_possibility_info(**kwargs)
-        return self.possibility_dict
-
-    def clear_possibility_info(self):
-        self.modified_possibility_dict = None
-        self.possibility_dict = None
-
-    def calc_or_lookup(self, func_dict, args_dict=None, kwargs_dict=None):
-        output = {}
-        for quant_name in func_dict.keys():
-            if quant_name not in self.calculated_data:
-                if args_dict is None:
-                    args = ()
-                else:
-                    args = args_dict[quant_name]
-                if kwargs_dict is None:
-                    kwargs = {}
-                else:
-                    kwargs = kwargs_dict[quant_name]
-                func = func_dict[quant_name]
-                calc_val = func(self, *args, **kwargs)
-                # TODO make this hard approach on exceptions optional?
-                # try:
-                #    calc_val = func(self, *args, **kwargs)
-                # except:
-                #    print("Exception encountered while evaluating function ", func)
-                #    print("Trajectory point:", self)
-                #    print("Arguments:", args, kwargs)
-                #    print("Previously calculated data:", self.calculated_data)
-                #    quit()
-                self.calculated_data[quant_name] = calc_val
-            output[quant_name] = self.calculated_data[quant_name]
-        return output
-
-    def visit_num(self, replica_id):
-        if self.num_visits is None:
-            return 0
-        else:
-            return self.num_visits[replica_id]
-
-    def mod_poss_dict_subdict(self, full_modification_path):
-        cur_subdict = self.modified_possibility_dict
-        for choice in full_modification_path:
-            cur_subdict = cur_subdict[choice]
-        return cur_subdict
-
-    def delete_mod_poss_dict(self, full_modification_path):
-        subdict = self.mod_poss_dict_subdict(full_modification_path[:-1])
-        if isinstance(subdict, list):
-            subdict.remove(full_modification_path[-1])
-        if isinstance(subdict, dict):
-            del subdict[full_modification_path[-1]]
-
-    def delete_mod_path(self, full_modification_path):
-        fmp_len = len(full_modification_path)
-        while len(self.modified_possibility_dict) != 0:
-            self.delete_mod_poss_dict(full_modification_path[:fmp_len])
-            fmp_len -= 1
-            if fmp_len == 0:
-                break
-            if len(self.mod_poss_dict_subdict(full_modification_path[:fmp_len])) != 0:
-                break
-
-    def copy_extra_data_to(self, other_tp, linear_storage=False, omit_data=None):
-        """
-        Copy all calculated data from self to other_tp.
-        """
-        for quant_name in self.calculated_data:
-            if quant_name not in other_tp.calculated_data:
-                if omit_data is not None:
-                    if quant_name in omit_data:
-                        continue
-                other_tp.calculated_data[quant_name] = self.calculated_data[quant_name]
-        # Dealing with making sure the order is preserved is too complicated.
-        # if self.bond_order_change_possibilities is not None:
-        #    if other_tp.bond_order_change_possibilities is None:
-        #        other_tp.bond_order_change_possibilities = deepcopy(
-        #            self.bond_order_change_possibilities
-        #        )
-        #        other_tp.chain_addition_possibilities = deepcopy(
-        #            self.chain_addition_possibilities
-        #        )
-        #        other_tp.nuclear_charge_change_possibilities = deepcopy(
-        #            self.nuclear_charge_change_possibilities
-        #        )
-        #        other_tp.atom_removal_possibilities = deepcopy(
-        #            self.atom_removal_possibilities
-        #        )
-        #        other_tp.valence_change_possibilities = deepcopy(
-        #            self.valence_change_possibilities
-        #        )
-        self.egc.chemgraph.copy_extra_data_to(
-            other_tp.egc.chemgraph, linear_storage=linear_storage
-        )
-
-    def add_visit_step_id(
-        self, step_id, beta_id, step_type=global_step_traj_storage_label
-    ):
-        if step_type not in self.visit_step_ids:
-            self.visit_step_ids[step_type] = {}
-            self.visit_step_num_ids[step_type] = {}
-        if beta_id not in self.visit_step_num_ids[step_type]:
-            self.visit_step_num_ids[step_type][beta_id] = 0
-            self.visit_step_ids[step_type][beta_id] = np.array([-1])
-        if (
-            self.visit_step_num_ids[step_type][beta_id]
-            == self.visit_step_ids[step_type][beta_id].shape[0]
-        ):
-            self.visit_step_ids[step_type][beta_id] = np.append(
-                self.visit_step_ids[step_type][beta_id],
-                np.repeat(-1, self.visit_step_num_ids[step_type][beta_id]),
-            )
-        self.visit_step_ids[step_type][beta_id][
-            self.visit_step_num_ids[step_type][beta_id]
-        ] = step_id
-        self.visit_step_num_ids[step_type][beta_id] += 1
-
-    def merge_visit_data(self, other_tp):
-        """
-        Merge visit data with data from TrajectoryPoint in another histogram.
-        """
-        if other_tp.num_visits is not None:
-            if self.num_visits is None:
-                self.num_visits = deepcopy(other_tp.num_visits)
-            else:
-                self.num_visits += other_tp.num_visits
-
-        for step_type, other_visit_step_all_ids in other_tp.visit_step_ids.items():
-            for beta_id, other_visit_step_ids in other_visit_step_all_ids.items():
-                other_visit_step_num_ids = other_tp.visit_step_num_ids[step_type][
-                    beta_id
-                ]
-                if other_visit_step_num_ids == 0:
-                    continue
-                if step_type not in self.visit_step_ids:
-                    self.visit_step_ids[step_type] = {}
-                    self.visit_step_num_ids[step_type] = {}
-                if beta_id in self.visit_step_ids[step_type]:
-                    new_visit_step_ids = SortedList(
-                        self.visit_step_ids[step_type][beta_id][
-                            : self.visit_step_num_ids[step_type][beta_id]
-                        ]
-                    )
-                    for visit_step_id in other_visit_step_ids[
-                        :other_visit_step_num_ids
-                    ]:
-                        new_visit_step_ids.add(visit_step_id)
-                    self.visit_step_ids[step_type][beta_id] = np.array(
-                        new_visit_step_ids
-                    )
-                    self.visit_step_num_ids[step_type][beta_id] = len(
-                        new_visit_step_ids
-                    )
-                else:
-                    self.visit_step_ids[step_type][beta_id] = deepcopy(
-                        other_visit_step_ids
-                    )
-                    self.visit_step_num_ids[step_type][
-                        beta_id
-                    ] = other_tp.visit_step_num_ids[step_type][beta_id]
-
-    def canonize_chemgraph(self):
-        """
-        Order heavy atoms inside the ChemGraph object according to canonical ordering. Used to make some tests consistent.
-        """
-        self.egc = ExtGraphCompound(
-            chemgraph=canonically_permuted_ChemGraph(self.chemgraph())
-        )
-        self.clear_possibility_info()
-
-    def chemgraph(self):
-        return self.egc.chemgraph
-
-    def __hash__(self):
-        return hash(self.chemgraph())
-
-    # TODO: Is comparison to ChemGraph objects worth the trouble?
-    def __lt__(self, tp2):
-        return self.chemgraph() < tp_or_chemgraph(tp2)
-
-    def __gt__(self, tp2):
-        return self.chemgraph() > tp_or_chemgraph(tp2)
-
-    def __eq__(self, tp2):
-        return self.chemgraph() == tp_or_chemgraph(tp2)
-
-    def __str__(self):
-        return str(self.egc)
-
-    def __repr__(self):
-        return str(self)
 
 
 class CandidateCompound:
     def __init__(self, tp: TrajectoryPoint, func_val: float):
         """
         Auxiliary class for more convenient maintenance of candidate compound list.
-        NOTE: The comparison operators are not strictly transitive (?), but work well enough for maintaining a candidate list.
+        NOTE: The comparison operators are not strictly transitive, but work well enough for maintaining a candidate list.
         tp : Trajectory point object.
         func_val : value of the minimized function.
         """
@@ -618,32 +65,13 @@ class CandidateCompound:
         self.func_val = func_val
 
     def __eq__(self, cc2):
-        if self.tp == cc2.tp:
-            return True
-        return (self.func_val is None) and (cc2.func_val is None)
-
-    def noneq_gt_wNone(self, cc2):
-        if self.func_val is None:
-            return True
-        if cc2.func_val is None:
-            return False
-        if self.func_val == cc2.func_val:
-            return (
-                self.tp > cc2.tp
-            )  # For consistency with __eq__ in case of integer minimized function.
-        return self.func_val > cc2.func_val
+        return compare_candidates(self, cc2, operator.eq)
 
     def __gt__(self, cc2):
-        if self == cc2:
-            return False
-        else:
-            return self.noneq_gt_wNone(cc2)
+        return compare_candidates(self, cc2, operator.gt)
 
     def __lt__(self, cc2):
-        if self == cc2:
-            return False
-        else:
-            return not self.noneq_gt_wNone(cc2)
+        return compare_candidates(self, cc2, operator.lt)
 
     def __str__(self):
         return (
@@ -658,143 +86,85 @@ class CandidateCompound:
         return str(self)
 
 
-from types import FunctionType
+def compare_candidates(
+    cand1: CandidateCompound, cand2: CandidateCompound, comparison_operator
+) -> bool:
+    """
+    Perform comparison on two CandidateCompound objects.
+    """
+    if (cand1.tp == cand2.tp) or (cand1.func_val == cand2.func_val):
+        return comparison_operator(cand1.tp, cand2.tp)
+    return comparison_operator(cand1.func_val, cand2.func_val)
 
 
-def inverse_mod_path(
-    new_egc,
-    old_egc,
-    change_procedure,
-    forward_path,
-    chain_addition_tuple_possibilities=False,
-    **other_kwargs
+def maintain_sorted_CandidateCompound_list(
+    obj,
+    trajectory_point: TrajectoryPoint = None,
+    min_func_val=None,
+    candidate: CandidateCompound = None,
 ):
-    if (change_procedure is change_bond_order) or (
-        change_procedure is change_bond_order_valence
+    """
+    A subroutine shared between RandomWalk and DistributedRandomWalk objects for maintaining their saved CandidateCompound lists.
+    """
+    if (obj.num_saved_candidates is None) and (obj.saved_candidates_max_difference is None):
+        return
+    if candidate is not None:
+        min_func_val = candidate.func_val
+
+    if min_func_val is None:
+        return
+
+    if candidate is None:
+        candidate = CandidateCompound(tp=deepcopy(trajectory_point), func_val=min_func_val)
+
+    if (obj.num_saved_candidates is not None) and (
+        len(obj.saved_candidates) >= obj.num_saved_candidates
     ):
-        return [-forward_path[0]]
-    if change_procedure is remove_heavy_atom:
-        removed_atom = forward_path[-1][0]
-        removed_elname = str_atom_corr(old_egc.chemgraph.hatoms[removed_atom].ncharge)
-        if chain_addition_tuple_possibilities:
-            return [removed_elname]
-        else:
-            neigh = old_egc.chemgraph.neighbors(removed_atom)[0]
-            if removed_atom < neigh:
-                neigh -= 1
-            neigh = new_egc.chemgraph.min_id_equivalent_atom_unchecked(neigh)
-            return [removed_elname, neigh]
-    if change_procedure is replace_heavy_atom:
-        changed_atom = forward_path[-1][0]
-        inserted_elname = str_atom_corr(old_egc.chemgraph.hatoms[changed_atom].ncharge)
-        return [inserted_elname]
-    if change_procedure is add_heavy_atom_chain:
-        return [forward_path[0]]
-    if change_procedure is change_valence:
-        return [new_egc.chemgraph.min_id_equivalent_atom_unchecked(forward_path[0])]
-    if change_procedure is change_valence_add_atoms:
-        return [
-            forward_path[0],
-            new_egc.chemgraph.min_id_equivalent_atom_unchecked(forward_path[1]),
-            list(range(old_egc.num_heavy_atoms(), new_egc.num_heavy_atoms())),
-        ]
-    if change_procedure is change_valence_remove_atoms:
-        modified_id = forward_path[1]
-        new_modified_id = modified_id
-        removed_ids = forward_path[2][0]
-        for removed_id in removed_ids:
-            if removed_id < modified_id:
-                new_modified_id -= 1
-        bo = old_egc.chemgraph.bond_order(modified_id, removed_ids[0])
-        return [
-            forward_path[0],
-            new_egc.chemgraph.min_id_equivalent_atom_unchecked(new_modified_id),
-            bo,
-        ]
-    raise Exception()
+        if min_func_val > obj.saved_candidates[-1].func_val:
+            return
+    if obj.saved_candidates_max_difference is not None:
+        new_lower_minfunc_bound = None
+        if len(obj.saved_candidates) != 0:
+            if (
+                min_func_val - obj.saved_candidates[0].func_val
+                > obj.saved_candidates_max_difference
+            ):
+                return
+            if min_func_val < obj.saved_candidates[0].func_val:
+                new_lower_minfunc_bound = min_func_val
+
+    if candidate in obj.saved_candidates:
+        return
+
+    obj.saved_candidates.add(candidate)
+
+    if (obj.num_saved_candidates is not None) and (
+        len(obj.saved_candidates) > obj.num_saved_candidates
+    ):
+        del obj.saved_candidates[obj.num_saved_candidates :]
+
+    if obj.saved_candidates_max_difference is not None:
+        if new_lower_minfunc_bound is not None:
+            # Delete tail candidates with too large minimized function values.
+            new_upper_bound = new_lower_minfunc_bound + obj.saved_candidates_max_difference
+            deleted_indices_bound = None
+            for i, cand in enumerate(obj.saved_candidates):
+                if cand.func_val > new_upper_bound:
+                    deleted_indices_bound = i
+                    break
+            if deleted_indices_bound is not None:
+                del obj.saved_candidates[deleted_indices_bound:]
 
 
-def randomized_change(
-    tp: TrajectoryPoint,
-    change_prob_dict=full_change_list,
-    visited_tp_list: list or None = None,
-    delete_chosen_mod_path: bool = False,
-    **other_kwargs
-):
-    """
-    Randomly modify a TrajectoryPoint object.
-    visited_tp_list : list of TrajectoryPoint objects for which data is available.
-    """
-    init_possibilities_kwargs = {"change_prob_dict": change_prob_dict, **other_kwargs}
-    if delete_chosen_mod_path:
-        if tp.modified_possibility_dict is None:
-            tp.modified_possibility_dict = deepcopy(
-                tp.possibilities(**init_possibilities_kwargs)
-            )
-        full_possibility_dict = tp.modified_possibility_dict
-        if len(full_possibility_dict) == 0:
-            return None, None
-    else:
-        full_possibility_dict = tp.possibilities(**init_possibilities_kwargs)
-
-    cur_change_procedure, possibilities, total_forward_prob = random_choice_from_dict(
-        full_possibility_dict, change_prob_dict
-    )
-    possibility_dict_label = change_possibility_label[cur_change_procedure]
-    possibility_dict = lookup_or_none(other_kwargs, possibility_dict_label)
-
-    modification_path, forward_prob = random_choice_from_nested_dict(
-        possibilities, choices=possibility_dict
-    )
-
-    if delete_chosen_mod_path:
-        tp.delete_mod_path([cur_change_procedure] + modification_path)
-
-    total_forward_prob += forward_prob
-
-    old_egc = tp.egc
-
-    new_egc = egc_change_func(
-        old_egc, modification_path, cur_change_procedure, **other_kwargs
-    )
-
-    if new_egc is None:
-        return None, None
-
-    new_tp = TrajectoryPoint(egc=new_egc)
-    if visited_tp_list is not None:
-        if new_tp in visited_tp_list:
-            tp_id = visited_tp_list.index(new_tp)
-            visited_tp_list[tp_id].copy_extra_data_to(new_tp)
-
-    new_tp.init_possibility_info(change_prob_dict=change_prob_dict, **other_kwargs)
-    # Calculate the chances of doing the inverse operation
-    inv_proc = inverse_procedure[cur_change_procedure]
-    inv_pos_label = change_possibility_label[inv_proc]
-    inv_poss_dict = lookup_or_none(other_kwargs, inv_pos_label)
-    # TODO delete post-testing?
-    try:
-        inv_mod_path = inverse_mod_path(
-            new_egc, old_egc, cur_change_procedure, modification_path, **other_kwargs
-        )
-        inverse_possibilities, total_inverse_prob = random_choice_from_dict(
-            new_tp.possibilities(),
-            change_prob_dict,
-            get_probability_of=inv_proc,
-        )
-
-        inverse_prob = random_choice_from_nested_dict(
-            inverse_possibilities, inv_poss_dict, get_probability_of=inv_mod_path
-        )
-    except KeyError:
-        print("NON-INVERTIBLE OPERATION")
-        print(old_egc, cur_change_procedure)
-        print(new_egc)
-        quit()
-
-    total_inverse_prob += inverse_prob
-
-    return new_tp, total_forward_prob - total_inverse_prob
+def str2CandidateCompound(str_in):
+    stripped_string = str_in.strip()
+    spl_stripped_string = stripped_string.split(",ChemGraph:")
+    chemgraph_str = spl_stripped_string[1][:-1]
+    chemgraph = str2ChemGraph(chemgraph_str)
+    func_val_str = spl_stripped_string[0].split(",func_val:")[1]
+    func_val = eval(func_val_str)
+    tp = TrajectoryPoint(cg=chemgraph, func_val=func_val)
+    return CandidateCompound(tp, func_val)
 
 
 def tidy_forbidden_bonds(forbidden_bonds):
@@ -812,23 +182,22 @@ class SoftExitCalled(Exception):
     Exception raised by RandomWalk object if soft exit request is passed.
     """
 
-    pass
-
 
 class InvalidStartingMolecules(Exception):
     """
     Exception raised by RandomWalk object if it is initialized with starting molecules that do not fit the parameters for random change.
     """
 
-    pass
 
-
-class DataUnavailable(Exception):
+# TODO: The expression appears in distributed_random_walk once, but not in RandomWalk class itself, the latter using alternative expression.
+# Using  Metropolis_acceptance_probability in RandomWalk instead might be better for readability, not sure.
+def Metropolis_acceptance_probability(log_prob_balance):
     """
-    Raised if data not available in a histogram is referred to.
+    Metropolis acceptance probability for a given balance of logarithm of proposition probability + effective potential function.
     """
-
-    pass
+    if log_prob_balance > 0.0:
+        return 1.0
+    return np.exp(log_prob_balance)
 
 
 class RandomWalk:
@@ -850,7 +219,6 @@ class RandomWalk:
         no_min_function_lookup: bool = False,
         num_replicas: int or None = None,
         no_exploration: bool = False,
-        no_exploration_smove_adjust: bool = False,
         restricted_tps: list or None = None,
         min_function_name: str = default_minfunc_name,
         num_saved_candidates: int or None = None,
@@ -946,7 +314,6 @@ class RandomWalk:
                 raise Exception
             else:
                 self.restricted_tps = restricted_tps
-                self.no_exploration_smove_adjust = no_exploration_smove_adjust
 
         self.bias_coeff = bias_coeff
         self.vbeta_bias_coeff = vbeta_bias_coeff
@@ -976,9 +343,9 @@ class RandomWalk:
             self.saved_candidates = SortedList()
 
         # For storing statistics on move success.
-        self.num_attempted_cross_couplings = 0
-        self.num_valid_cross_couplings = 0
-        self.num_accepted_cross_couplings = 0
+        self.num_attempted_crossovers = 0
+        self.num_valid_crossovers = 0
+        self.num_accepted_crossovers = 0
 
         self.num_attempted_simple_moves = 0
         self.num_valid_simple_moves = 0
@@ -1031,17 +398,18 @@ class RandomWalk:
         bond_order_valence_changes : by how much a bond can change during steps that change bond order and valence of an atom (e.g. [-2, 2]).
         max_fragment_num : how many disconnected fragments (e.g. molecules) a chemical graph is allowed to break into.
         added_bond_orders_val_change : when creating atoms to be connected to a molecule's atom with a change of valence of the latter what the possible bond orders are.
-        cross_coupling_max_num_affected_bonds : when a molecule is broken into two fragments what is the maximum number of bonds that can be broken.
-        cross_coupling_smallest_exchange_size : do not perform a cross-coupling move if less than this number of atoms is exchanged on both sides.
+        crossover_max_num_affected_bonds : when a molecule is broken into two fragments what is the maximum number of bonds that can be broken.
+        crossover_smallest_exchange_size : do not perform a cross-coupling move if less than this number of atoms is exchanged on both sides.
+        linear_scaling_elementary_mutations : O(nhatoms) scaling of elementary mutations at the cost of not accounting for graph invariance at trial step generation.
+        linear_scaling_crossover_moves : O(nhatoms) scaling of crossover moves at the cost of not accounting for graph invariance and forbidden bonds at trial step generation.
+        save_equivalence_data :
         """
         if randomized_change_params is not None:
             self.randomized_change_params = randomized_change_params
             # used_randomized_change_params contains randomized_change_params as well as some temporary data to optimize code's performance.
             self.used_randomized_change_params = deepcopy(self.randomized_change_params)
             if "forbidden_bonds" in self.used_randomized_change_params:
-                self.used_randomized_change_params[
-                    "forbidden_bonds"
-                ] = tidy_forbidden_bonds(
+                self.used_randomized_change_params["forbidden_bonds"] = tidy_forbidden_bonds(
                     self.used_randomized_change_params["forbidden_bonds"]
                 )
 
@@ -1059,24 +427,22 @@ class RandomWalk:
                 final_nhatoms_range=None,
                 max_fragment_num=1,
                 added_bond_orders_val_change=[1, 2],
-                cross_coupling_max_num_affected_bonds=3,
-                cross_coupling_smallest_exchange_size=2,
+                crossover_max_num_affected_bonds=None,
+                crossover_smallest_exchange_size=2,
+                linear_scaling_elementary_mutations=True,
+                linear_scaling_crossover_moves=True,
+                save_equivalence_data=False,
             )
 
             # Some convenient aliases.
             cur_change_dict = self.used_randomized_change_params["change_prob_dict"]
 
             # Initialize some auxiliary arguments that allow the code to run just a little faster.
-            cur_added_bond_orders = self.used_randomized_change_params[
-                "added_bond_orders"
-            ]
+            cur_added_bond_orders = self.used_randomized_change_params["added_bond_orders"]
             cur_not_protonated = self.used_randomized_change_params["not_protonated"]
-            cur_possible_elements = self.used_randomized_change_params[
-                "possible_elements"
-            ]
+            cur_possible_elements = self.used_randomized_change_params["possible_elements"]
             cur_possible_ncharges = [
-                int_atom_checked(possible_element)
-                for possible_element in cur_possible_elements
+                int_atom_checked(possible_element) for possible_element in cur_possible_elements
             ]
             cur_default_valences = {}
             for ncharge in cur_possible_ncharges:
@@ -1086,40 +452,33 @@ class RandomWalk:
             for change_func in cur_change_dict:
                 inv_change_func = inverse_procedure[change_func]
                 if inv_change_func not in cur_change_dict:
-                    print(
-                        "WARNING, inverse not found in randomized_change_params for:",
-                        change_func,
-                        " adding inverse.",
-                    )
+                    if VERBOSITY != VERBOSITY_MUTED:
+                        print(
+                            "WARNING, inverse not found in randomized_change_params for:",
+                            change_func,
+                            " adding inverse.",
+                        )
                     if isinstance(cur_change_dict, dict):
                         cur_change_dict[inv_change_func] = cur_change_dict[change_func]
                     else:
                         cur_change_dict.append(inv_change_func)
 
             # Initialize some auxiliary arguments that allow the code to run just a little faster.
-            self.used_randomized_change_params[
-                "possible_ncharges"
-            ] = cur_possible_ncharges
-            self.used_randomized_change_params[
-                "default_valences"
-            ] = cur_default_valences
+            self.used_randomized_change_params["possible_ncharges"] = cur_possible_ncharges
+            self.used_randomized_change_params["default_valences"] = cur_default_valences
 
-            if (add_heavy_atom_chain in cur_change_dict) or (
-                remove_heavy_atom in cur_change_dict
-            ):
+            if (add_heavy_atom_chain in cur_change_dict) or (remove_heavy_atom in cur_change_dict):
                 avail_added_bond_orders = {}
                 atom_removal_possible_hnums = {}
-                for ncharge, def_val in zip(
-                    cur_possible_ncharges, cur_default_valences.values()
-                ):
+                for ncharge, def_val in zip(cur_possible_ncharges, cur_default_valences.values()):
                     avail_added_bond_orders[ncharge] = available_added_atom_bos(
                         ncharge,
                         cur_added_bond_orders,
                         not_protonated=cur_not_protonated,
                     )
-                    atom_removal_possible_hnums[
-                        ncharge
-                    ] = gen_atom_removal_possible_hnums(cur_added_bond_orders, def_val)
+                    atom_removal_possible_hnums[ncharge] = gen_atom_removal_possible_hnums(
+                        cur_added_bond_orders, def_val
+                    )
                 self.used_randomized_change_params_check_defaults(
                     avail_added_bond_orders=avail_added_bond_orders,
                     atom_removal_possible_hnums=atom_removal_possible_hnums,
@@ -1131,12 +490,6 @@ class RandomWalk:
                 ] = gen_val_change_pos_ncharges(
                     cur_possible_elements, not_protonated=cur_not_protonated
                 )
-
-            if self.no_exploration:
-                if self.no_exploration_smove_adjust:
-                    self.used_randomized_change_params[
-                        "restricted_tps"
-                    ] = self.restricted_tps
 
     def used_randomized_change_params_check_defaults(
         self, check_kw_validity=False, **other_kwargs
@@ -1226,22 +579,21 @@ class RandomWalk:
         """
         for new_tp in new_tps:
             if not self.egc_valid_wrt_change_params(new_tp.egc):
-                print("INCONSISTENT TRAJECTORY POINTS")
-                print("INITIAL:")
-                print(*[self.cur_tps[replica_id] for replica_id in replica_ids])
-                print("PROPOSED:")
-                print(*new_tps)
-                quit()
+                if VERBOSITY != VERBOSITY_MUTED:
+                    print("INCONSISTENT TRAJECTORY POINTS")
+                    print("INITIAL:")
+                    print(*[self.cur_tps[replica_id] for replica_id in replica_ids])
+                    print("PROPOSED:")
+                    print(*new_tps)
+                raise InvalidChange
 
     def acceptance_rule(self, new_tps, prob_balance, replica_ids=[0]):
-
         if self.no_exploration:
             for new_tp in new_tps:
                 if new_tp not in self.restricted_tps:
                     return False
         new_tot_pot_vals = [
-            self.tot_pot(new_tp, replica_id)
-            for new_tp, replica_id in zip(new_tps, replica_ids)
+            self.tot_pot(new_tp, replica_id) for new_tp, replica_id in zip(new_tps, replica_ids)
         ]
 
         # Check we have not created any invalid molecules.
@@ -1249,8 +601,7 @@ class RandomWalk:
             return False
 
         prev_tot_pot_vals = [
-            self.tot_pot(self.cur_tps[replica_id], replica_id)
-            for replica_id in replica_ids
+            self.tot_pot(self.cur_tps[replica_id], replica_id) for replica_id in replica_ids
         ]
 
         if (self.betas is not None) and self.virtual_beta_present(replica_ids):
@@ -1322,15 +673,11 @@ class RandomWalk:
         output = 0
         if self.hydrogen_nums is not None:
             if egc.chemgraph.tot_nhydrogens() != self.hydrogen_nums[replica_id]:
-                output += abs(
-                    egc.chemgraph.tot_nhydrogens() - self.hydrogen_nums[replica_id]
-                )
+                output += abs(egc.chemgraph.tot_nhydrogens() - self.hydrogen_nums[replica_id])
         if egc.chemgraph.num_connected != 1:
             output += egc.chemgraph.num_connected() - 1
         if "final_nhatoms_range" in self.used_randomized_change_params:
-            final_nhatoms_range = self.used_randomized_change_params[
-                "final_nhatoms_range"
-            ]
+            final_nhatoms_range = self.used_randomized_change_params["final_nhatoms_range"]
             if egc.num_heavy_atoms() > final_nhatoms_range[1]:
                 output += egc.num_heavy_atoms() - final_nhatoms_range[1]
             else:
@@ -1361,17 +708,14 @@ class RandomWalk:
         if None in cur_tot_pot_vals:
             return None
         switched_tot_pot_vals = [
-            self.tot_pot(tp, replica_id)
-            for tp, replica_id in zip(tp_pair, replica_ids[::-1])
+            self.tot_pot(tp, replica_id) for tp, replica_id in zip(tp_pair, replica_ids[::-1])
         ]  # The reason we don't just switch cur_tot_pot_vals is to account for potential change of biasing potential between replicas.
         if self.virtual_beta_present(replica_ids):
             if all(self.virtual_beta_ids(replica_ids)):
                 return 0.5
             else:
                 cur_virt_min = self.min_over_virtual(cur_tot_pot_vals, replica_ids)
-                switched_virt_min = self.min_over_virtual(
-                    switched_tot_pot_vals, replica_ids
-                )
+                switched_virt_min = self.min_over_virtual(switched_tot_pot_vals, replica_ids)
                 if cur_virt_min == switched_virt_min:
                     return 0.5
                 if cur_virt_min < switched_virt_min:
@@ -1403,25 +747,19 @@ class RandomWalk:
         self.num_valid_simple_moves += 1
 
         new_tp = self.hist_checked_tp(new_tp)
-        accepted = self.accept_reject_move(
-            [new_tp], prob_balance, replica_ids=[replica_id]
-        )
+        accepted = self.accept_reject_move([new_tp], prob_balance, replica_ids=[replica_id])
         if accepted:
             self.num_accepted_simple_moves += 1
 
         return accepted
 
-    def trial_genetic_MC_step(self, replica_ids):
+    def trial_crossover_MC_step(self, replica_ids):
         """
-        Trial move part of the genetic step.
+        Trial move part of the crossover step.
         """
-        old_cg_pair = [
-            self.cur_tps[replica_id].egc.chemgraph for replica_id in replica_ids
-        ]
-        new_cg_pair, prob_balance = randomized_cross_coupling(
-            old_cg_pair,
-            visited_tp_list=self.histogram,
-            **self.used_randomized_change_params
+        old_cg_pair = [self.cur_tps[replica_id].egc.chemgraph for replica_id in replica_ids]
+        new_cg_pair, prob_balance = randomized_crossover(
+            old_cg_pair, visited_tp_list=self.histogram, **self.used_randomized_change_params
         )
         if new_cg_pair is None:
             return None, None
@@ -1432,9 +770,7 @@ class RandomWalk:
             [TrajectoryPoint(cg=new_cg) for new_cg in new_cg_pair]
         )
         if self.betas is not None:
-            new_pair_shuffle_prob = self.tp_pair_order_prob(
-                replica_ids, tp_pair=new_pair_tps
-            )
+            new_pair_shuffle_prob = self.tp_pair_order_prob(replica_ids, tp_pair=new_pair_tps)
             if new_pair_shuffle_prob is None:  # a minimized function value is invalid
                 return None, None
             if random.random() > new_pair_shuffle_prob:  # shuffle
@@ -1444,24 +780,22 @@ class RandomWalk:
             prob_balance += np.log(new_pair_shuffle_prob / old_pair_shuffle_prob)
         return new_pair_tps, prob_balance
 
-    def genetic_MC_step(self, replica_ids):
+    def crossover_MC_step(self, replica_ids):
         """
         Attempt a cross-coupled MC step.
         """
-        self.num_attempted_cross_couplings += 1
+        self.num_attempted_crossovers += 1
 
-        new_pair_tps, prob_balance = self.trial_genetic_MC_step(replica_ids)
+        new_pair_tps, prob_balance = self.trial_crossover_MC_step(replica_ids)
 
         if new_pair_tps is None:
             return False
 
-        self.num_valid_cross_couplings += 1
+        self.num_valid_crossovers += 1
 
-        accepted = self.accept_reject_move(
-            new_pair_tps, prob_balance, replica_ids=replica_ids
-        )
+        accepted = self.accept_reject_move(new_pair_tps, prob_balance, replica_ids=replica_ids)
         if accepted:
-            self.num_accepted_cross_couplings += 1
+            self.num_accepted_crossovers += 1
         return accepted
 
     # Procedures for changing entire list of Trajectory Points at once.
@@ -1474,36 +808,32 @@ class RandomWalk:
     def random_changed_replica_pair(self):
         return random.sample(range(self.num_replicas), 2)
 
-    def genetic_MC_step_all(
-        self, num_genetic_tries=1, randomized_change_params=None, **dummy_kwargs
+    def crossover_MC_step_all(
+        self, num_crossover_attempts=1, randomized_change_params=None, **dummy_kwargs
     ):
-        self.init_randomized_change_params(
-            randomized_change_params=randomized_change_params
-        )
-        for _ in range(num_genetic_tries):
+        self.init_randomized_change_params(randomized_change_params=randomized_change_params)
+        for _ in range(num_crossover_attempts):
             changed_replica_ids = self.random_changed_replica_pair()
             # The swap before is to avoid situations where the pair's
-            # initial ordering's probability is 0 in genetic move,
+            # initial ordering's probability is 0 in crossover move,
             # the second is for detailed balance concerns.
             self.parallel_tempering_swap(changed_replica_ids)
-            self.genetic_MC_step(changed_replica_ids)
+            self.crossover_MC_step(changed_replica_ids)
             self.parallel_tempering_swap(changed_replica_ids)
 
     def parallel_tempering_swap(self, replica_ids):
         self.num_attempted_tempering_swaps += 1
 
         trial_tps = [self.cur_tps[replica_ids[1]], self.cur_tps[replica_ids[0]]]
-        accepted = self.accept_reject_move(
-            trial_tps, 0.0, replica_ids=replica_ids, swap=True
-        )
+        accepted = self.accept_reject_move(trial_tps, 0.0, replica_ids=replica_ids, swap=True)
         if accepted:
             self.num_accepted_tempering_swaps += 1
 
         return accepted
 
-    def parallel_tempering(self, num_parallel_tempering_tries=1, **dummy_kwargs):
+    def parallel_tempering(self, num_parallel_tempering_attempts=1, **dummy_kwargs):
         if (self.min_function is not None) and (not self.all_betas_same):
-            for _ in range(num_parallel_tempering_tries):
+            for _ in range(num_parallel_tempering_attempts):
                 invalid_choice = True
                 while invalid_choice:
                     replica_ids = self.random_changed_replica_pair()
@@ -1513,21 +843,16 @@ class RandomWalk:
     def global_change_dict(self):
         return {
             "simple": self.MC_step_all,
-            "genetic": self.genetic_MC_step_all,
+            "crossover": self.crossover_MC_step_all,
             "tempering": self.parallel_tempering,
         }
 
     def global_random_change(
-        self,
-        prob_dict={"simple": 0.5, "genetic": 0.25, "tempering": 0.25},
-        **other_kwargs
+        self, prob_dict={"simple": 0.5, "crossover": 0.25, "tempering": 0.25}, **other_kwargs
     ):
-
         self.global_MC_step_counter += 1
 
-        cur_procedure = random.choices(
-            list(prob_dict), weights=list(prob_dict.values())
-        )[0]
+        cur_procedure = random.choices(list(prob_dict), weights=list(prob_dict.values()))[0]
         global_change_dict = self.global_change_dict()
         if cur_procedure in global_change_dict:
             global_change_dict[cur_procedure](**other_kwargs)
@@ -1548,6 +873,7 @@ class RandomWalk:
         if self.max_histogram_size is not None:
             if len(self.histogram) > self.max_histogram_size:
                 self.dump_extra_histogram()
+        return cur_procedure
 
     def complete_simulation(self, num_global_MC_steps=0, **other_kwargs):
         """
@@ -1572,9 +898,7 @@ class RandomWalk:
             tp_in_histogram = tp in self.histogram
             if tp_in_histogram:
                 tp_index = self.histogram.index(tp)
-                tp.copy_extra_data_to(
-                    self.histogram[tp_index], omit_data=self.delete_temp_data
-                )
+                tp.copy_extra_data_to(self.histogram[tp_index], omit_data=self.delete_temp_data)
                 # TODO make an update call info procedure?
                 self.histogram[
                     tp_index
@@ -1634,9 +958,7 @@ class RandomWalk:
         trajectory_point_in.first_MC_step_encounter = self.MC_step_counter
         trajectory_point_in.first_global_MC_step_encounter = self.global_MC_step_counter
         trajectory_point_in.first_encounter_replica = replica_id
-        trajectory_point_in.last_tot_pot_call_global_MC_step = (
-            self.global_MC_step_counter
-        )
+        trajectory_point_in.last_tot_pot_call_global_MC_step = self.global_MC_step_counter
 
         added_tp = deepcopy(trajectory_point_in)
 
@@ -1664,14 +986,10 @@ class RandomWalk:
                 else:
                     if self.linear_storage:
                         self.histogram[cur_tp_index].clear_possibility_info()
-                        self.histogram[
-                            cur_tp_index
-                        ].egc.chemgraph.pair_equivalence_matrix = None
+                        self.histogram[cur_tp_index].egc.chemgraph.pair_equivalence_matrix = None
 
                 if self.histogram[cur_tp_index].first_MC_step_acceptance is None:
-                    self.histogram[
-                        cur_tp_index
-                    ].first_MC_step_acceptance = self.MC_step_counter
+                    self.histogram[cur_tp_index].first_MC_step_acceptance = self.MC_step_counter
                     self.histogram[
                         cur_tp_index
                     ].first_global_MC_step_acceptance = self.global_MC_step_counter
@@ -1701,9 +1019,7 @@ class RandomWalk:
 
     def update_num_visits(self, tp_index, replica_id):
         if self.histogram[tp_index].num_visits is None:
-            self.histogram[tp_index].num_visits = np.zeros(
-                (self.num_replicas,), dtype=int
-            )
+            self.histogram[tp_index].num_visits = np.zeros((self.num_replicas,), dtype=int)
         self.histogram[tp_index].num_visits[replica_id] += 1
 
     #    def hist_check_tp(self, tp):
@@ -1747,36 +1063,9 @@ class RandomWalk:
                 tp.visit_step_ids = None
 
     def update_saved_candidates(self, tp_in):
-        if (self.num_saved_candidates is None) and (
-            self.saved_candidates_max_difference is None
-        ):
-            return
-        min_func_val = tp_in.calculated_data[self.min_function_name]
-        if min_func_val is None:
-            return
-        if (self.num_saved_candidates is not None) and (
-            len(self.saved_candidates) >= self.num_saved_candidates
-        ):
-            if min_func_val > self.saved_candidates[-1].func_val:
-                return
-        if self.saved_candidates_max_difference is not None:
-            if (
-                min_func_val - self.saved_candidates[0].func_val
-                > self.saved_candidates_max_difference
-            ):
-                return
-
-        new_cand_compound = CandidateCompound(tp=deepcopy(tp_in), func_val=min_func_val)
-
-        if new_cand_compound in self.saved_candidates:
-            return
-
-        self.saved_candidates.add(new_cand_compound)
-
-        if (self.num_saved_candidates is not None) and (
-            len(self.saved_candidates) > self.num_saved_candidates
-        ):
-            del self.saved_candidates[self.num_saved_candidates :]
+        maintain_sorted_CandidateCompound_list(
+            self, tp_in, tp_in.calculated_data[self.min_function_name]
+        )
 
     # Some properties for more convenient trajectory analysis.
     def ordered_trajectory(self):
@@ -1815,9 +1104,7 @@ class RandomWalk:
                 self.make_restart()
                 raise SoftExitCalled
 
-    def make_restart(
-        self, restart_file: str or None = None, tarball: bool or None = None
-    ):
+    def make_restart(self, restart_file: str or None = None, tarball: bool or None = None):
         """
         Create a file containing all information needed to restart the simulation from the current point.
         restart_file : name of the file where the dump is created; if None self.restart_file is used
@@ -1828,9 +1115,9 @@ class RandomWalk:
             "cur_tps": self.cur_tps,
             "MC_step_counter": self.MC_step_counter,
             "global_MC_step_counter": self.global_MC_step_counter,
-            "num_attempted_cross_couplings": self.num_attempted_cross_couplings,
-            "num_valid_cross_couplings": self.num_valid_cross_couplings,
-            "num_accepted_cross_couplings": self.num_accepted_cross_couplings,
+            "num_attempted_crossovers": self.num_attempted_crossovers,
+            "num_valid_crossovers": self.num_valid_crossovers,
+            "num_accepted_crossovers": self.num_accepted_crossovers,
             "num_attempted_simple_moves": self.num_attempted_simple_moves,
             "num_valid_simple_moves": self.num_valid_simple_moves,
             "num_accepted_simple_moves": self.num_accepted_simple_moves,
@@ -1852,7 +1139,7 @@ class RandomWalk:
             tarball = self.compress_restart
         dump2pkl(saved_data, restart_file, compress=tarball)
 
-    def restart_from(self, restart_file: str or None = None):
+    def restart_from(self, restart_file: Union[str, None] = None):
         """
         Recover all data from
         restart_file : name of the file from which the data is recovered; if None self.restart_file is used
@@ -1863,24 +1150,16 @@ class RandomWalk:
         self.cur_tps = recovered_data["cur_tps"]
         self.MC_step_counter = recovered_data["MC_step_counter"]
         self.global_MC_step_counter = recovered_data["global_MC_step_counter"]
-        self.num_attempted_cross_couplings = recovered_data[
-            "num_attempted_cross_couplings"
-        ]
-        self.num_valid_cross_couplings = recovered_data["num_valid_cross_couplings"]
-        self.num_accepted_cross_couplings = recovered_data[
-            "num_accepted_cross_couplings"
-        ]
+        self.num_attempted_crossovers = recovered_data["num_attempted_crossovers"]
+        self.num_valid_crossovers = recovered_data["num_valid_crossovers"]
+        self.num_accepted_crossovers = recovered_data["num_accepted_crossovers"]
 
         self.num_attempted_simple_moves = recovered_data["num_attempted_simple_moves"]
         self.num_valid_simple_moves = recovered_data["num_valid_simple_moves"]
         self.num_accepted_simple_moves = recovered_data["num_accepted_simple_moves"]
 
-        self.num_attempted_tempering_swaps = recovered_data[
-            "num_attempted_tempering_swaps"
-        ]
-        self.num_accepted_tempering_swaps = recovered_data[
-            "num_accepted_tempering_swaps"
-        ]
+        self.num_attempted_tempering_swaps = recovered_data["num_attempted_tempering_swaps"]
+        self.num_accepted_tempering_swaps = recovered_data["num_accepted_tempering_swaps"]
 
         self.moves_since_changed = recovered_data["moves_since_changed"]
         self.global_steps_since_last = recovered_data["global_steps_since_last"]
@@ -1900,10 +1179,7 @@ class RandomWalk:
         dumped_tps = SortedList()
         tp_id = 0
         while tp_id != len(self.histogram):
-            if (
-                self.histogram[tp_id].last_tot_pot_call_global_MC_step
-                < last_tot_pot_call_cut
-            ):
+            if self.histogram[tp_id].last_tot_pot_call_global_MC_step < last_tot_pot_call_cut:
                 dumped_tps.add(deepcopy(self.histogram[tp_id]))
                 del self.histogram[tp_id]
             else:
@@ -1951,109 +1227,12 @@ class RandomWalk:
         Return dictionnary containing information necessary to determine data such as acceptance rate, validity ratio, etc.
         """
         return {
-            "num_attempted_cross_couplings": self.num_attempted_cross_couplings,
-            "num_valid_cross_couplings": self.num_valid_cross_couplings,
-            "num_accepted_cross_couplings": self.num_accepted_cross_couplings,
+            "num_attempted_crossovers": self.num_attempted_crossovers,
+            "num_valid_crossovers": self.num_valid_crossovers,
+            "num_accepted_crossovers": self.num_accepted_crossovers,
             "num_attempted_simple_moves": self.num_attempted_simple_moves,
             "num_valid_simple_moves": self.num_valid_simple_moves,
             "num_accepted_simple_moves": self.num_accepted_simple_moves,
             "num_attempted_tempering_swaps": self.num_attempted_tempering_swaps,
             "num_accepted_tempering_swaps": self.num_accepted_tempering_swaps,
         }
-
-
-# Some procedures for convenient RandomWalk analysis.
-def histogram_num_replicas(histogram):
-    max_replica_id = 0
-    for tp in histogram:
-        cur_visit_step_ids = tp.visit_step_ids
-        if global_step_traj_storage_label not in cur_visit_step_ids:
-            continue
-        visiting_replicas = cur_visit_step_ids[global_step_traj_storage_label].keys()
-        if visiting_replicas:
-            max_replica_id = max(max_replica_id, max(visiting_replicas))
-    return max_replica_id + 1
-
-
-def ordered_trajectory_ids(histogram, global_MC_step_counter=None, num_replicas=None):
-    if num_replicas is None:
-        num_replicas = histogram_num_replicas(histogram)
-        if num_replicas is None:
-            raise DataUnavailable
-    if global_MC_step_counter is None:
-        global_MC_step_counter = 0
-        for tp in histogram:
-            if global_step_traj_storage_label in tp.visit_step_ids:
-                for visit_ids, num_visits in zip(
-                    tp.visit_step_ids[global_step_traj_storage_label].values(),
-                    tp.visit_step_num_ids[global_step_traj_storage_label].values(),
-                ):
-                    if num_visits > 0:
-                        global_MC_step_counter = max(
-                            global_MC_step_counter, visit_ids[num_visits - 1]
-                        )
-    output = np.zeros((global_MC_step_counter + 1, num_replicas), dtype=int)
-    output[:, :] = -1
-    for tp_id, tp in enumerate(histogram):
-        if global_step_traj_storage_label in tp.visit_step_ids:
-            cur_vsi_dict = tp.visit_step_ids[global_step_traj_storage_label]
-            cur_vsni_dict = tp.visit_step_num_ids[global_step_traj_storage_label]
-            for replica_id, num_visits in cur_vsni_dict.items():
-                visits = cur_vsi_dict[replica_id][:num_visits]
-                for v in visits:
-                    output[v, replica_id] = tp_id
-    for step_id in range(global_MC_step_counter):
-        true_step_id = step_id + 1
-        for replica_id in range(num_replicas):
-            if output[true_step_id, replica_id] == -1:
-                output[true_step_id, replica_id] = output[true_step_id - 1, replica_id]
-    return output
-
-
-def ordered_trajectory(histogram, **ordered_trajectory_ids_kwargs):
-    output = []
-    for tp_ids in ordered_trajectory_ids(histogram, **ordered_trajectory_ids_kwargs):
-        output.append([histogram[tp_id] for tp_id in tp_ids])
-    return output
-
-
-def ordered_trajectory_ids_kwargs_from_restart(restart_data):
-    return {
-        "global_MC_step_counter": restart_data["global_MC_step_counter"],
-        "num_replicas": len(restart_data["cur_tps"]),
-    }
-
-
-def ordered_trajectory_from_restart(restart_data):
-    return ordered_trajectory(
-        restart_data["histogram"],
-        **ordered_trajectory_ids_kwargs_from_restart(restart_data)
-    )
-
-
-def ordered_trajectory_ids_from_restart(restart_data):
-    return ordered_trajectory_ids(
-        restart_data["histogram"],
-        **ordered_trajectory_ids_kwargs_from_restart(restart_data)
-    )
-
-
-def average_wait_number(histogram):
-    return average_wait_number_from_traj_ids(ordered_trajectory_ids(histogram))
-
-
-def average_wait_number_from_traj_ids(traj_ids):
-    num_replicas = traj_ids.shape[-1]
-    output = np.zeros((num_replicas,), dtype=int)
-    cur_time = np.zeros((num_replicas,), dtype=int)
-    prev_ids = traj_ids[0]
-    for cur_ids in traj_ids[1:]:
-        for counter, (cur_id, prev_id) in enumerate(zip(cur_ids, prev_ids)):
-            if cur_id == prev_id:
-                cur_time[counter] += 1
-            else:
-                cur_time[counter] = 0
-        output[:] += cur_time[:]
-        prev_ids = cur_ids
-
-    return output / traj_ids.shape[0]

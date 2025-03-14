@@ -10,7 +10,7 @@ Evolutionary Monte Carlo algorithm for optimization in chemical space.
 MOSAiCS is an Evolutionary Monte Carlo algorithm designed for optimizing target functions over the space of organic molecules. The algorithm combines the benefits of both genetic algorithms and Monte Carlo techniques, providing a powerful tool for complex optimization tasks in applied science.
 
 For more information, please read our paper ["Evolutionary Monte Carlo of QM properties in chemical space: Electrolyte design"](https://arxiv.org/abs/2307.15563) published on arXiv.
-  
+
 ## :package: Dependencies
 
 MOSAiCS has the following dependencies:
@@ -20,6 +20,7 @@ MOSAiCS has the following dependencies:
 - sortedcontainers
 - scipy
 - loky
+- joblib
 
 Additional packages are required to run some example scripts.
 
@@ -37,9 +38,9 @@ Additional packages are required to run some example scripts.
    cd mosaics
    ```
 
-3. Install the package using `setuptools`
+3. Install the package using `Makefile` (which in turn uses `setuptools`)
    ```bash
-   python setup.py install
+   make install
    ```
    or `pip`
    ```bash
@@ -70,11 +71,11 @@ Learn to use protocols for tuning beta parameters during optimization.
 ### [ChemSpaceSampler](examples/05_chemspacesampler/)
 Showcases the algorithm's ability to explore various regions of the chemical space. For further reading see ["Understanding Representations by Exploring Galaxies in Chemical Space"](https://arxiv.org/abs/2309.09194) published on arXiv.
 
-## :straight_ruler: Tests
-Unfortunately, due to uncertain nature of Monte Carlo trajectories the only way to completely verify correctness of installation is by running a relatively long Monte Carlo calculation with a certain random number generator seed and compare it to the benchmark trajectory. Hence each example script in `examples` with a toy problem function also contains a benchmark `*.log` file to which the output can be compared; such calculations take significantly more time than a typical test. A reference environment for which the benchmarks could be reproduced is found in `examples/benchmark_env.yml` (in case, for example, an environment update changes the way random number generation works). Reproducing output of the example in `examples/01_toy_minimization` should be enough to verify installation.
-
 ## :handshake: Contributing
 We welcome contributions and feedback from the community. If you encounter any issues or have suggestions for improvements, please [open an issue](https://github.com/chemspacelab/mosaics/issues) on GitHub.
+
+## :straight_ruler: Tests
+Unfortunately, due to uncertain nature of Monte Carlo trajectories the only way to completely verify correctness of installation is by running a relatively long Monte Carlo calculation with a certain random number generator seed and compare it to the benchmark trajectory. Hence each example script in `examples` with a toy problem function also has a test version in `tests` that compares code output to a benchmark; the calculation takes significantly more time than a typical test. A reference environment for which the benchmarks could be reproduced is found in `tests/benchmark_env.yml` (in case, for example, an environment update changes the way random number generation works). Passing the test in `tests/01_toy_minimization` should be enough to verify installation.
 
 ## :scroll: License
 This project is licensed under the MIT License

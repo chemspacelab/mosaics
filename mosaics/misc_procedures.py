@@ -1,6 +1,29 @@
 # Several auxiliary functions that appear everywhere.
+import copy
+import os
+import random
+
+import numpy as np
+
 from .data import NUCLEAR_CHARGE
-import os, copy
+
+# Related to verbosity.
+
+VERBOSITY_MUTED = 0
+VERBOSITY_FULL = 1
+
+VERBOSITY_OPTIONS = [VERBOSITY_MUTED, VERBOSITY_FULL]
+
+VERBOSITY = VERBOSITY_MUTED
+
+
+def set_verbosity(verbosity_value: int):
+    assert verbosity_value in VERBOSITY_OPTIONS
+    global VERBOSITY
+    VERBOSITY = verbosity_value
+
+
+# End of procedures related to verbosity.
 
 
 def canonical_atomtype(atomtype):
@@ -32,9 +55,7 @@ num_procs_name = "MOSAICS_NUM_PROCS"
 
 
 def default_num_procs(num_procs=None):
-    return checked_environ_val(
-        num_procs_name, expected_answer=num_procs, default_answer=1
-    )
+    return checked_environ_val(num_procs_name, expected_answer=num_procs, default_answer=1)
 
 
 # Sorting-related.
@@ -126,9 +147,7 @@ class weighted_array(list):
                 upper_cutoff = self[remaining_length - 1].rho
                 cut_rho = upper_cutoff * remaining_length + ignored_rhos
                 if cut_rho > (1.0 - remaining_rho):
-                    density_cut = (
-                        1.0 - remaining_rho - ignored_rhos
-                    ) / remaining_length
+                    density_cut = (1.0 - remaining_rho - ignored_rhos) / remaining_length
                     break
                 else:
                     ignored_rhos += upper_cutoff
@@ -164,3 +183,142 @@ def repeated_dict(labels, repeated_el, copy_needed=False):
 
 def all_None_dict(labels):
     return repeated_dict(labels, None)
+
+
+def lookup_or_none(dict_in, key):
+    if key in dict_in:
+        return dict_in[key]
+    else:
+        return None
+
+
+# We evaluate a lot of logarithms of natural numbers, so makes sense to cut down on their calculation.
+def intlog_no_precalc(int_in):
+    return np.log(float(int_in))
+
+
+class NaturalLogLookup:
+    def __init__(self):
+        self.saved_values = None
+        self.max_avail_val = 0
+
+    def gen_new_saved_values(self, new_max_avail_val):
+        new_saved_values = np.empty((new_max_avail_val,))
+        if self.saved_values is not None:
+            new_saved_values[: self.max_avail_val] = self.saved_values[:]
+        old_max_avail_val = self.max_avail_val
+        self.max_avail_val
+        return new_saved_values, old_max_avail_val
+
+    def fill_saved_values(self, new_max_avail_val):
+        new_saved_values, old_max_avail_val = self.gen_new_saved_values(new_max_avail_val)
+        for i in range(old_max_avail_val, new_max_avail_val):
+            new_saved_values[i] = intlog_no_precalc(i + 1)
+        self.saved_values = new_saved_values
+        self.max_avail_val = new_max_avail_val
+
+    def __call__(self, int_val):
+        assert int_val > 0
+        if int_val > self.max_avail_val:
+            self.fill_saved_values(int_val)
+        return self.saved_values[int_val - 1]
+
+
+intlog = NaturalLogLookup()
+
+
+def llenlog(l):
+    return intlog(len(l))
+
+
+class FactorialLogLookup(NaturalLogLookup):
+    def fill_saved_values(self, new_max_avail_val):
+        new_saved_values, old_max_avail_val = self.gen_new_saved_values(new_max_avail_val)
+        if old_max_avail_val == 1:
+            current_log = 0.0
+        else:
+            current_log = self.saved_values[old_max_avail_val - 1]
+        for i in range(old_max_avail_val, new_max_avail_val):
+            current_log += intlog(i + 1)
+            new_saved_values[i] = current_log
+        self.saved_values = new_saved_values
+        self.max_avail_val = new_max_avail_val
+
+
+log_natural_factorial = NaturalLogLookup()
+
+
+# Used for different random choices (mainly in modify)
+def available_options_prob_norm(dict_in):
+    output = 0.0
+    for i in list(dict_in):
+        if len(dict_in[i]) != 0:
+            output += 1.0
+    return output
+
+
+def random_choice_from_dict(possibilities, choices=None, get_probability_of=None):
+    prob_sum = 0.0
+    corr_prob_choice = {}
+    if choices is None:
+        choices = possibilities.keys()
+    for choice in choices:
+        if (choice not in possibilities) or (len(possibilities[choice]) == 0):
+            continue
+        if isinstance(choices, dict):
+            prob = choices[choice]
+        else:
+            prob = 1.0
+        prob_sum += prob
+        corr_prob_choice[choice] = prob
+    if get_probability_of is None:
+        if len(corr_prob_choice.keys()) == 0:
+            raise Exception("Something is wrong: encountered a molecule that cannot be changed")
+        final_choice = random.choices(
+            list(corr_prob_choice.keys()), list(corr_prob_choice.values())
+        )[0]
+        final_prob_log = np.log(corr_prob_choice[final_choice] / prob_sum)
+        return final_choice, possibilities[final_choice], final_prob_log
+    else:
+        return possibilities[get_probability_of], np.log(
+            corr_prob_choice[get_probability_of] / prob_sum
+        )
+
+
+def random_choice_from_nested_dict(possibilities, choices=None, get_probability_of=None):
+    continue_nested = True
+    cur_possibilities = possibilities
+    prob_log = 0.0
+    cur_choice_prob_dict = choices
+
+    if get_probability_of is None:
+        final_choice = []
+    else:
+        choice_level = 0
+
+    while continue_nested:
+        if not isinstance(cur_possibilities, dict):
+            if isinstance(cur_possibilities, list):
+                prob_log -= llenlog(cur_possibilities)
+                if get_probability_of is None:
+                    final_choice.append(random.choice(cur_possibilities))
+            break
+        if get_probability_of is None:
+            get_prob_arg = None
+        else:
+            get_prob_arg = get_probability_of[choice_level]
+            choice_level += 1
+        rcfd_res = random_choice_from_dict(
+            cur_possibilities,
+            choices=cur_choice_prob_dict,
+            get_probability_of=get_prob_arg,
+        )
+        prob_log += rcfd_res[-1]
+        cur_possibilities = rcfd_res[-2]
+        cur_choice_prob_dict = None
+        if get_probability_of is None:
+            final_choice.append(rcfd_res[0])
+    if get_probability_of is None:
+        return final_choice, prob_log
+    else:
+        return prob_log

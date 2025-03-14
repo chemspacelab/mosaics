@@ -1,6 +1,6 @@
 # Contains toy problems for code testing.
-from ..random_walk import TrajectoryPoint
 from ..data import NUCLEAR_CHARGE
+from ..random_walk import TrajectoryPoint
 
 
 class Diatomic_barrier:
@@ -51,10 +51,7 @@ class OrderSlide:
 
     def __call__(self, trajectory_point_in: TrajectoryPoint):
         self.call_counter += 1
-        return -sum(
-            self.order_dict[ha.ncharge]
-            for ha in trajectory_point_in.egc.chemgraph.hatoms
-        )
+        return -sum(self.order_dict[ha.ncharge] for ha in trajectory_point_in.egc.chemgraph.hatoms)
 
 
 class ZeroFunc:
