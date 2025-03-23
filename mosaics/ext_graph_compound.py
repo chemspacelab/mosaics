@@ -1,8 +1,8 @@
 import numpy as np
 
+from .chem_graph import ChemGraph, str2ChemGraph
 from .data import NUCLEAR_CHARGE
 from .misc_procedures import int_atom_checked, intlog, sorted_by_membership, sorted_tuple
-from .valence_treatment import ChemGraph
 
 hydrogen_equivalence_class = -1  # Equivalence class reserved for hydrogen.
 
@@ -15,8 +15,8 @@ class ExtGraphCompound:
         chemgraph=None,
         coordinates=None,
         elements=None,
-        hydrogen_autofill=False,
         bond_orders=None,
+        charge=0,
         additional_data={},
     ):
         """
@@ -34,8 +34,8 @@ class ExtGraphCompound:
                 self.chemgraph = ChemGraph(
                     adj_mat=adjacency_matrix,
                     nuclear_charges=nuclear_charges,
-                    hydrogen_autofill=hydrogen_autofill,
                     bond_orders=bond_orders,
+                    charge=charge,
                 )
                 # Mapping between hatoms in ChemGraph and atoms in init_nuclear_charges and init_adjacency_matrix.
         else:
@@ -333,3 +333,8 @@ def log_atom_multiplicity_in_list(
             **other_kwargs,
         )
     )
+
+
+def str2ExtGraphCompound(input_string: str, shuffle=False) -> ExtGraphCompound:
+    cg = str2ChemGraph(input_string, shuffle=shuffle)
+    return ExtGraphCompound(chemgraph=cg)

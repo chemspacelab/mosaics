@@ -3,7 +3,7 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 [project]
 name = "mosaics"
-version = "0.2.2"
+version = "0.3.0"
 dependencies=[
     "numpy",
     "igraph",
@@ -20,4 +20,4 @@ description="Evolutionary Monte Carlo algorithm for optimization in chemical spa
 readme="README.md"
 license={text="MIT License"}
 [tool.setuptools]
-packages=["mosaics", "mosaics.minimized_functions"]
+packages=["mosaics", "mosaics.chem_graph", "mosaics.minimized_functions"]

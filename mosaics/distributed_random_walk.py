@@ -13,6 +13,7 @@ from loky import get_reusable_executor
 from loky.process_executor import TerminatedWorkerError
 from sortedcontainers import SortedList
 
+from .chem_graph import misc_global_variables_current_kwargs, set_misc_global_variables
 from .random_walk import (
     CandidateCompound,
     Metropolis_acceptance_probability,
@@ -21,7 +22,6 @@ from .random_walk import (
     default_minfunc_name,
     maintain_sorted_CandidateCompound_list,
 )
-from .valence_treatment import misc_global_variables_current_kwargs, set_misc_global_variables
 
 
 class SubpopulationPropagationIntermediateResults:

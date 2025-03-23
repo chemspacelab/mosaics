@@ -8,26 +8,29 @@ from copy import deepcopy
 from rdkit.Chem import RemoveHs, rdAbbreviations
 from rdkit.Chem.Draw import rdMolDraw2D
 
-from .ext_graph_compound import ExtGraphCompound
-from .misc_procedures import str_atom_corr
-from .modify import (
+from .chem_graph import ChemGraph
+from .crossover import (
     FragmentPair,
+    crossover_outcomes,
+    frag_size_status_list,
+    matching_frag_size_status_list,
+)
+from .ext_graph_compound import ExtGraphCompound
+from .misc_procedures import sorted_tuple, str_atom_corr
+from .modify import (
     add_heavy_atom_chain,
     change_bond_order,
     change_bond_order_valence,
     change_valence,
     change_valence_add_atoms,
     change_valence_remove_atoms,
-    crossover_outcomes,
-    frag_size_status_list,
-    matching_frag_size_status_list,
+    egc_change_func,
     remove_heavy_atom,
     replace_heavy_atom,
 )
-from .random_walk import TrajectoryPoint, egc_change_func, full_change_list
+from .random_walk import TrajectoryPoint, full_change_list
 from .rdkit_utils import SMILES_to_egc, chemgraph_to_rdkit, rdkit_bond_type
 from .utils import mkdir
-from .valence_treatment import ChemGraph, sorted_tuple
 
 # Some colors that I think look good on print.
 RED = (1.0, 0.0, 0.0)

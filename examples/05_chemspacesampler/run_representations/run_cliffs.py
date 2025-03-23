@@ -1,6 +1,8 @@
+import matplotlib.pyplot as plt
+
 from mosaics.beta_choice import gen_exp_beta_array
 from mosaics.minimized_functions import chemspace_potentials
-import matplotlib.pyplot as plt
+
 
 def main():
     params = {
@@ -36,11 +38,13 @@ def main():
     print(P[:10])
     print(P0)
 
-    #create a new plot 
+    # create a new plot
     fig, ax = plt.subplots()
     ax.plot(D, P, label="Property")
-    #horizontal line at P0
-    ax.axhline(y=P0, color='r', linestyle='--', label="P0")
+    # horizontal line at P0
+    ax.axhline(y=P0, color="r", linestyle="--", label="P0")
     plt.show()
+
+
 if __name__ == "__main__":
     main()

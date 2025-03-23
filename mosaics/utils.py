@@ -96,7 +96,7 @@ def read_xyz_lines(xyz_lines, additional_attributes=["charge"]):
 
 
 # Break an egc of a disconnected molecules into several egc's corresponding to each fragment.
-def break_into_connected(egc):
+def break_into_connected(egc: ExtGraphCompound):
     output = []
     gc = egc.chemgraph.graph.components()
     mvec = np.array(gc.membership)
@@ -177,13 +177,13 @@ def xbgf2gc(xbgf_file):
 #   Some procedures that often appear in scripts.
 
 
-def egc2xyz_string(egc, extra_string=""):
+def egc2xyz_string(egc: ExtGraphCompound, extra_string=""):
     return xyz_string(
         egc.coordinates, nuclear_charges=egc.nuclear_charges, extra_string=extra_string
     )
 
 
-def write_egc2xyz(egc, xyz_file_name, extra_string=""):
+def write_egc2xyz(egc: ExtGraphCompound, xyz_file_name, extra_string=""):
     write_xyz_file(
         egc.coordinates,
         xyz_file_name,

@@ -21,6 +21,8 @@ import numpy as np
 from scipy.special import expit
 from sortedcontainers import SortedDict, SortedList
 
+from .chem_graph import InvalidChange, str2ChemGraph
+from .chem_graph.heavy_atom import default_valence, int_atom_checked
 from .crossover import randomized_crossover
 from .elementary_mutations import (
     add_heavy_atom_chain,
@@ -31,7 +33,7 @@ from .elementary_mutations import (
     remove_heavy_atom,
 )
 from .ext_graph_compound import egc_valid_wrt_change_params
-from .misc_procedures import VERBOSITY, VERBOSITY_MUTED
+from .misc_procedures import VERBOSITY, VERBOSITY_MUTED, sorted_tuple
 from .modify import (
     TrajectoryPoint,
     full_change_list,
@@ -42,13 +44,6 @@ from .modify import (
 )
 from .trajectory_analysis import ordered_trajectory, ordered_trajectory_ids
 from .utils import dump2pkl, loadpkl, pkl_compress_ending
-from .valence_treatment import (
-    InvalidChange,
-    default_valence,
-    int_atom_checked,
-    sorted_tuple,
-    str2ChemGraph,
-)
 
 default_minfunc_name = "MIN_FUNC_NAME"
 
@@ -579,12 +574,11 @@ class RandomWalk:
         """
         for new_tp in new_tps:
             if not self.egc_valid_wrt_change_params(new_tp.egc):
-                if VERBOSITY != VERBOSITY_MUTED:
-                    print("INCONSISTENT TRAJECTORY POINTS")
-                    print("INITIAL:")
-                    print(*[self.cur_tps[replica_id] for replica_id in replica_ids])
-                    print("PROPOSED:")
-                    print(*new_tps)
+                print("INCONSISTENT TRAJECTORY POINTS")
+                print("INITIAL:")
+                print(*[self.cur_tps[replica_id] for replica_id in replica_ids])
+                print("PROPOSED:")
+                print(*new_tps)
                 raise InvalidChange
 
     def acceptance_rule(self, new_tps, prob_balance, replica_ids=[0]):

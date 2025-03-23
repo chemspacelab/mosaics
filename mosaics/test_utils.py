@@ -7,6 +7,7 @@ import numpy as np
 from joblib import Parallel, delayed
 from sortedcontainers import SortedDict
 
+from .chem_graph import ChemGraph, str2ChemGraph
 from .data import NUCLEAR_CHARGE
 from .modify import egc_change_func, random_modification_path_choice
 from .random_walk import (
@@ -20,7 +21,6 @@ from .random_walk import (
     randomized_change,
 )
 from .utils import run
-from .valence_treatment import ChemGraph, str2ChemGraph
 
 
 def elements_in_egc_list(egc_list, as_elements=True):

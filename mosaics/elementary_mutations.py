@@ -9,9 +9,10 @@ from copy import deepcopy
 
 import numpy as np
 
+from .chem_graph.heavy_atom import avail_val_list, default_valence, next_valence
+from .chem_graph.resonance_structures import max_bo
 from .ext_graph_compound import ExtGraphCompound, connection_forbidden
-from .misc_procedures import int_atom_checked
-from .valence_treatment import avail_val_list, default_valence, max_bo, next_valence, sorted_tuple
+from .misc_procedures import int_atom_checked, sorted_tuple
 
 
 def atom_equivalent_to_list_member(egc, atom_id, atom_id_list):
@@ -971,12 +972,14 @@ def replace_heavy_atom(
         inserted_valence=inserted_valence,
         resonance_structure_id=resonance_structure_id,
     )
+
     return val_min_checked_egc(new_chemgraph)
 
 
 def remove_heavy_atom(egc, removed_atom_id, resonance_structure_id=None):
     new_chemgraph = deepcopy(egc.chemgraph)
     new_chemgraph.remove_heavy_atom(removed_atom_id, resonance_structure_id=resonance_structure_id)
+
     return ExtGraphCompound(chemgraph=new_chemgraph)
 
 
@@ -999,6 +1002,7 @@ def change_valence(egc, modified_atom_id, new_valence, resonance_structure_id=No
         )
         new_chemgraph.adjust_resonance_valences(resonance_structure_region, resonance_structure_id)
     new_chemgraph.change_valence(modified_atom_id, new_valence)
+
     return val_min_checked_egc(new_chemgraph)
 
 
@@ -1026,6 +1030,7 @@ def change_valence_add_atoms(egc, modified_atom_id, new_atom_element, new_bo):
         new_chemgraph.add_heavy_atom_chain(
             modified_atom_id, [new_atom_charge], chain_bond_orders=[new_bo]
         )
+
     return val_min_checked_egc(new_chemgraph)
 
 
@@ -1089,7 +1094,7 @@ def change_bond_order_valence(
     if bond_order_change < 0:
         new_chemgraph.change_valence(val_changed_atom_id, new_valence)
 
-    if not new_chemgraph.hatoms[val_changed_atom_id].valence_reasonable():
-        raise Exception()
+    new_chemgraph.changed()
+    assert new_chemgraph.hatoms[val_changed_atom_id].valence_reasonable()
 
     return val_min_checked_egc(new_chemgraph)

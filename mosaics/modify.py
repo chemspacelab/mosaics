@@ -5,6 +5,9 @@ from typing import Union
 import numpy as np
 from sortedcontainers import SortedList
 
+from .chem_graph import ChemGraph, InvalidChange, canonically_permuted_ChemGraph, str2ChemGraph
+from .chem_graph.heavy_atom import next_valence
+from .chem_graph.resonance_structures import max_bo
 from .elementary_mutations import (
     add_heavy_atom_chain,
     atom_removal_possibilities,
@@ -32,21 +35,11 @@ from .ext_graph_compound import (
     log_atom_multiplicity_in_list,
 )
 from .misc_procedures import (
-    VERBOSITY,
-    VERBOSITY_MUTED,
     llenlog,
     lookup_or_none,
     random_choice_from_dict,
     random_choice_from_nested_dict,
     str_atom_corr,
-)
-from .valence_treatment import (
-    ChemGraph,
-    InvalidChange,
-    canonically_permuted_ChemGraph,
-    max_bo,
-    next_valence,
-    str2ChemGraph,
 )
 
 global_step_traj_storage_label = "global"
@@ -1034,10 +1027,9 @@ def randomized_change(
             **other_kwargs,
         )
     except KeyError:
-        if VERBOSITY != VERBOSITY_MUTED:
-            print("NON-INVERTIBLE OPERATION")
-            print(old_egc, cur_change_procedure)
-            print(new_egc)
+        print("NON-INVERTIBLE OPERATION")
+        print(old_egc, cur_change_procedure)
+        print(new_egc)
         raise InvalidChange
 
     total_inverse_prob += inverse_prob

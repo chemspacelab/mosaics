@@ -5,21 +5,23 @@ from joblib import Parallel, delayed
 from rdkit import Chem
 from xyz2mol import AC2mol, chiral_stereo_check, xyz2AC
 
+from .chem_graph import ChemGraph
 from .ext_graph_compound import ExtGraphCompound
 from .misc_procedures import (
     VERBOSITY,
     VERBOSITY_MUTED,
+    InvalidAdjMat,
     default_num_procs,
     default_parallel_backend,
     int_atom_checked,
 )
+from .random_walk import TrajectoryPoint
 from .rdkit_utils import (
     FFInconsistent,
     chemgraph_to_canonical_rdkit,
     chemgraph_to_canonical_rdkit_wcoords_no_check,
 )
 from .utils import read_xyz_file
-from .valence_treatment import ChemGraph, InvalidAdjMat
 
 
 def xyz2mol_graph(nuclear_charges, charge, coords, get_chirality=False):
@@ -75,7 +77,7 @@ def chemgraph_from_ncharges_coords(nuclear_charges, coordinates, charge=0):
         [float(atom_coord) for atom_coord in atom_coords] for atom_coords in coordinates
     ]
     adj_matrix, ncharges, _ = xyz2mol_graph(converted_ncharges, charge, converted_coordinates)
-    return ChemGraph(adj_mat=adj_matrix, nuclear_charges=ncharges)
+    return ChemGraph(adj_mat=adj_matrix, nuclear_charges=ncharges, charge=charge)
 
 
 def egc_from_ncharges_coords(nuclear_charges, coordinates, charge=0):
@@ -92,6 +94,7 @@ def egc_from_ncharges_coords(nuclear_charges, coordinates, charge=0):
         adjacency_matrix=bond_order_matrix,
         nuclear_charges=np.array(converted_ncharges),
         coordinates=coordinates,
+        charge=charge,
     )
 
 
@@ -128,7 +131,7 @@ def all_egc_from_tar(tarfile_name):
 
 
 # Using RdKit to generate ChemGraph and other objects with coordinates, while checking with xyz2mol that the coordinates make sense.
-def chemgraph_to_canonical_rdkit_wcoords(cg, **kwargs):
+def chemgraph_to_canonical_rdkit_wcoords(cg: ChemGraph, **kwargs):
     """
     Creates an rdkit Molecule object whose heavy atoms are canonically ordered.
     cg : ChemGraph input chemgraph object
@@ -151,7 +154,7 @@ def chemgraph_to_canonical_rdkit_wcoords(cg, **kwargs):
     return mol, canon_SMILES, rdkit_coords
 
 
-def egc_with_coords(egc, coords=None, **kwargs):
+def egc_with_coords(egc: ExtGraphCompound, coords=None, **kwargs):
     """
     Create a copy of an ExtGraphCompound object with coordinates. If coordinates are set to None they are generated with RDKit.
     egc : ExtGraphCompound input object
@@ -177,7 +180,7 @@ def egc_with_coords(egc, coords=None, **kwargs):
     return output
 
 
-def coord_info_from_tp(tp, **kwargs):
+def coord_info_from_tp(tp: TrajectoryPoint, **kwargs):
     """
     Coordinates corresponding to a TrajectoryPoint object
     tp : TrajectoryPoint object

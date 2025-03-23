@@ -3,20 +3,14 @@ import random
 
 import numpy as np
 
-from mosaics import ExtGraphCompound
+from mosaics.ext_graph_compound import str2ExtGraphCompound
 from mosaics.minimized_functions import OrderSlide
 from mosaics.optimization_protocol import OptimizationProtocol
 from mosaics.test_utils import SimulationLogIO
 
 max_nhatoms = 9  # Not 15 to cut down on the CPU time.
 
-init_ncharges = [6]
-init_adj_matrix = [[0]]
-init_egc = ExtGraphCompound(
-    nuclear_charges=init_ncharges,
-    adjacency_matrix=init_adj_matrix,
-    hydrogen_autofill=True,
-)
+init_egc = str2ExtGraphCompound("6#4")
 
 possible_elements = ["B", "C", "N", "O", "F", "Si", "P", "S", "Cl", "Br"]
 

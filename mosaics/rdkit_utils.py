@@ -6,16 +6,15 @@ from rdkit.Chem import AllChem
 from rdkit.Chem.rdmolfiles import MolToSmiles
 from rdkit.Chem.rdmolops import GetAdjacencyMatrix
 
-from .ext_graph_compound import ExtGraphCompound
-from .misc_procedures import int_atom_checked
-from .test_utils import print_to_separate_file_wprefix
-from .valence_treatment import (
+from .chem_graph import (
     ChemGraph,
     canonically_permuted_ChemGraph,
-    default_valence,
     split_chemgraph_into_connected_fragments,
     str2ChemGraph,
 )
+from .chem_graph.heavy_atom import default_valence
+from .ext_graph_compound import ExtGraphCompound
+from .test_utils import print_to_separate_file_wprefix
 
 
 class RdKitFailure(Exception):
@@ -23,9 +22,16 @@ class RdKitFailure(Exception):
 
 
 #   For going between rdkit and egc objects.
-def rdkit_to_egc(rdkit_mol, egc_hydrogen_autofill=False):
+def rdkit_to_egc(rdkit_mol, return_chemgraph=False):
     nuclear_charges = [atom.GetAtomicNum() for atom in rdkit_mol.GetAtoms()]
     adjacency_matrix = GetAdjacencyMatrix(rdkit_mol)
+
+    if return_chemgraph:
+        return ChemGraph(
+            adj_mat=adjacency_matrix,
+            nuclear_charges=nuclear_charges,
+            charge=Chem.GetFormalCharge(rdkit_mol),
+        )
 
     try:
         coordinates = rdkit_mol.GetConformer().GetPositions()
@@ -35,21 +41,27 @@ def rdkit_to_egc(rdkit_mol, egc_hydrogen_autofill=False):
         adjacency_matrix=adjacency_matrix,
         nuclear_charges=nuclear_charges,
         coordinates=coordinates,
-        hydrogen_autofill=egc_hydrogen_autofill,
     )
 
 
 #   For converting SMILES to egc.
-def SMILES_to_egc(smiles_string, egc_hydrogen_autofill=False):
+def SMILES_to_egc(smiles_string, return_chemgraph=False):
     mol = Chem.MolFromSmiles(smiles_string)
     if mol is None:
         raise RdKitFailure
-    # We can fill the hydrogens either at this stage or at EGC creation stage;
-    # introduced when I had problems with rdKIT.
-    mol = Chem.AddHs(mol, explicitOnly=egc_hydrogen_autofill)
-    egc_out = rdkit_to_egc(mol, egc_hydrogen_autofill=egc_hydrogen_autofill)
-    egc_out.additional_data["SMILES"] = smiles_string
+    mol = Chem.AddHs(mol)
+    egc_out = rdkit_to_egc(mol, return_chemgraph=return_chemgraph)
+    if not return_chemgraph:
+        egc_out.additional_data["SMILES"] = smiles_string
     return egc_out
+
+
+def SMILES_to_chemgraph(SMILES):
+    return SMILES_to_egc(SMILES, return_chemgraph=True)
+
+
+def rdkit_to_chemgraph(rdkit_mol):
+    return rdkit_to_egc(rdkit_mol, return_chemgraph=True)
 
 
 def SMILES_list_to_egc(smiles_list):
@@ -73,37 +85,6 @@ rdkit_bond_type = {
 }
 
 
-# TODO in later stages combine with graph_to_rdkit function in G2S.
-def egc_to_rdkit(egc):
-    # create empty editable mol object
-    mol = Chem.RWMol()
-
-    # add atoms to mol and keep track of index
-    node_to_idx = {}
-    for atom_id, atom_ncharge in enumerate(egc.true_ncharges()):
-        a = Chem.Atom(int_atom_checked[atom_ncharge])
-        mol_idx = mol.AddAtom(a)
-        node_to_idx[atom_id] = mol_idx
-
-    # add bonds between adjacent atoms
-    for ix, row in enumerate(egc.true_adjmat()):
-        for iy, bond in enumerate(row):
-            # only traverse half the matrix
-            if (iy <= ix) or (iy >= egc.num_atoms()):
-                continue
-            # add relevant bond type (there are many more of these)
-            if bond == 0:
-                continue
-            else:
-                mol.AddBond(node_to_idx[ix], node_to_idx[iy], rdkit_bond_type[bond])
-
-    # Convert RWMol to Mol object
-    mol = mol.GetMol()
-    # TODO: Do we need to sanitize?
-    Chem.SanitizeMol(mol)
-    return mol
-
-
 def chemgraph_to_rdkit(
     cg: ChemGraph,
     explicit_hydrogens=True,
@@ -123,6 +104,8 @@ def chemgraph_to_rdkit(
     node_to_idx = {}
     for atom_id, ha in enumerate(cg.hatoms):
         a = Chem.Atom(int(ha.ncharge))
+        if ha.charge != 0:
+            a.SetFormalCharge(ha.charge)
         mol_idx = mol.AddAtom(a)
         node_to_idx[atom_id] = mol_idx
         nhydrogens[atom_id] = ha.nhydrogens
@@ -177,11 +160,19 @@ def chemgraph_to_rdkit(
         # Convert RWMol to Mol object
         mol = mol.GetMol()
         # TODO: Do we need to sanitize?
-        Chem.SanitizeMol(mol)
+        try:
+            Chem.SanitizeMol(mol)
+        except Chem.rdchem.AtomValenceException:
+            # more exception types should be added as encountered
+            print("WARNING: Failed to sanitize", cg)
     if include_SMILES:
         return mol, SMILES
     else:
         return mol
+
+
+def egc_to_rdkit(egc: ExtGraphCompound, **kwargs):
+    return chemgraph_to_rdkit(egc.chemgraoh, **kwargs)
 
 
 def chemgraph_to_canonical_rdkit(
@@ -205,6 +196,10 @@ def chemgraph_to_canonical_rdkit(
         return canon_SMILES
     else:
         return canon_rdkit, canon_SMILES
+
+
+def chemgraph_to_SMILES(cg: ChemGraph):
+    return chemgraph_to_canonical_rdkit(cg, SMILES_only=True)
 
 
 # Different optimizers available for rdkit.

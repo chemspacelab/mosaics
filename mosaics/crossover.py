@@ -1,4 +1,7 @@
-# Everything related to crossover moves.
+"""
+Everything related to crossover moves.
+"""
+
 # TODO: Konstantin: I know the number of objects created here can be cut down significantly, but
 # at this point more polishing could be excessive.
 
@@ -11,9 +14,10 @@ import numpy as np
 from igraph.operators import disjoint_union
 from sortedcontainers import SortedList
 
+from .chem_graph import ChemGraph, InvalidChange
+from .chem_graph.resonance_structures import max_bo
 from .ext_graph_compound import atom_multiplicity_in_list, connection_forbidden
-from .misc_procedures import VERBOSITY, VERBOSITY_MUTED, intlog
-from .valence_treatment import ChemGraph, InvalidChange, max_bo, sorted_by_membership, sorted_tuple
+from .misc_procedures import intlog, sorted_by_membership, sorted_tuple
 
 
 class Frag2FragMapping:
@@ -1061,10 +1065,9 @@ def randomized_crossover(
 
     log_tot_choice_prob_ratio = np.log(tot_choice_prob_ratio)
     if np.isinf(log_tot_choice_prob_ratio):
-        if VERBOSITY != VERBOSITY_MUTED:
-            print("NONINVERTIBLE CROSS-COUPLING PROPOSED:")
-            print("INITIAL CHEMGRAPHS:", cg_pair)
-            print("PROPOSED CHEMGRAPHS:", new_cg_pair)
+        print("NONINVERTIBLE CROSS-COUPLING PROPOSED:")
+        print("INITIAL CHEMGRAPHS:", cg_pair)
+        print("PROPOSED CHEMGRAPHS:", new_cg_pair)
         raise InvalidChange
 
     if linear_scaling_crossover_moves:

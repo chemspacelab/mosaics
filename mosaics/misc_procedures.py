@@ -2,10 +2,16 @@
 import copy
 import os
 import random
+from itertools import groupby
 
 import numpy as np
 
 from .data import NUCLEAR_CHARGE
+
+
+class InvalidAdjMat(Exception):
+    pass
+
 
 # Related to verbosity.
 
@@ -322,3 +328,35 @@ def random_choice_from_nested_dict(possibilities, choices=None, get_probability_
         return final_choice, prob_log
     else:
         return prob_log
+
+
+def list2colors(obj_list):
+    """
+    Color obj_list in a way that each equal obj1 and obj2 were the same color.
+    Used for defining canonical permutation of a graph.
+    """
+    ids_objs = list(enumerate(obj_list))
+    ids_objs.sort(key=lambda x: x[1])
+    num_obj = len(ids_objs)
+    colors = np.zeros(num_obj, dtype=int)
+    cur_color = 0
+    prev_obj = ids_objs[0][1]
+    for i in range(1, num_obj):
+        cur_obj = ids_objs[i][1]
+        if cur_obj != prev_obj:
+            cur_color += 1
+            prev_obj = cur_obj
+        colors[ids_objs[i][0]] = cur_color
+    return colors
+
+
+def merge_unrepeated_sorted_lists(base_list, added_list):
+    for el in added_list:
+        if el not in base_list:
+            base_list.add(el)
+
+
+# from: https://stackoverflow.com/questions/3844801/check-if-all-elements-in-a-list-are-equal
+def all_equal(iterable):
+    g = groupby(iterable)
+    return next(g, True) and not next(g, False)
