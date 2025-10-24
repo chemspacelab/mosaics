@@ -85,6 +85,57 @@ rdkit_bond_type = {
 }
 
 
+def get_current_resonance_attribute(
+    chemgraph, ha_id, recovered_attr, possible_recovered_attr, resonance_struct_adj=None
+):
+    """
+    Charges and valences may change with resonance structure. Check which one is needed.
+    """
+    if (resonance_struct_adj is not None) and (possible_recovered_attr is not None):
+        # TODO do we need a function for finding which resonance structure contains a given atom?
+        for res_struct_id, extra_val_ids in enumerate(chemgraph.resonance_structure_inverse_map):
+            if ha_id in extra_val_ids:
+                if res_struct_id in resonance_struct_adj:
+                    # adjust the valence
+                    return possible_recovered_attr[
+                        chemgraph.resonance_structure_valence_vals[res_struct_id][
+                            resonance_struct_adj[res_struct_id]
+                        ]
+                    ]
+                else:
+                    break
+    return recovered_attr
+
+
+def get_current_charge(chemgraph: ChemGraph, ha_id, resonance_struct_adj=None):
+    ha = chemgraph.hatoms[ha_id]
+    return get_current_resonance_attribute(
+        chemgraph, ha_id, ha.charge, ha.possible_charges, resonance_struct_adj=resonance_struct_adj
+    )
+
+
+def get_current_valence(chemgraph: ChemGraph, ha_id, resonance_struct_adj=None):
+    ha = chemgraph.hatoms[ha_id]
+    return get_current_resonance_attribute(
+        chemgraph,
+        ha_id,
+        ha.valence,
+        ha.possible_valences,
+        resonance_struct_adj=resonance_struct_adj,
+    )
+
+
+def add_rdkit_hydrogen(mol, added_id):
+    a = Chem.Atom(1)
+    hidx = mol.AddAtom(a)
+    mol.AddBond(added_id, hidx, rdkit_bond_type[1])
+
+
+def add_rdkit_hydrogens(mol, added_id, nhydrogens):
+    for _ in range(nhydrogens):
+        add_rdkit_hydrogen(mol, added_id)
+
+
 def chemgraph_to_rdkit(
     cg: ChemGraph,
     explicit_hydrogens=True,
@@ -104,8 +155,9 @@ def chemgraph_to_rdkit(
     node_to_idx = {}
     for atom_id, ha in enumerate(cg.hatoms):
         a = Chem.Atom(int(ha.ncharge))
-        if ha.charge != 0:
-            a.SetFormalCharge(ha.charge)
+        current_charge = get_current_charge(cg, atom_id, resonance_struct_adj=resonance_struct_adj)
+        if current_charge != 0:
+            a.SetFormalCharge(current_charge)
         mol_idx = mol.AddAtom(a)
         node_to_idx[atom_id] = mol_idx
         nhydrogens[atom_id] = ha.nhydrogens
@@ -133,28 +185,14 @@ def chemgraph_to_rdkit(
     # TODO Didn't I have a DEFAULT_ATOM somewhere?
     if explicit_hydrogens:
         for ha_id, nhyd in enumerate(nhydrogens):
-            for _ in range(nhyd):
-                a = Chem.Atom(1)
-                hidx = mol.AddAtom(a)
-                mol.AddBond(node_to_idx[ha_id], hidx, rdkit_bond_type[1])
+            add_rdkit_hydrogens(mol, node_to_idx[ha_id], nhyd)
     elif extra_valence_hydrogens:
-        for ha_id, ha in enumerate(cg.hatoms):
-            if (resonance_struct_adj is None) or (ha.possible_valences is None):
-                cur_valence = ha.valence
-            else:
-                # TODO do we need a function for finding which resonance structure contains a given atom?
-                for i, extra_val_ids in enumerate(cg.resonance_structure_inverse_map):
-                    if ha_id in extra_val_ids:
-                        cur_valence = ha.possible_valences[
-                            cg.resonance_structure_valence_vals[i][
-                                resonance_struct_adj[res_struct_id]
-                            ]
-                        ]
+        for atom_id, ha in enumerate(cg.hatoms):
+            cur_valence = get_current_valence(
+                cg, atom_id, resonance_struct_adj=resonance_struct_adj
+            )
             if cur_valence != default_valence(ha.ncharge):
-                for _ in range(ha.nhydrogens):
-                    a = Chem.Atom(1)
-                    hidx = mol.AddAtom(a)
-                    mol.AddBond(node_to_idx[ha_id], hidx, rdkit_bond_type[1])
+                add_rdkit_hydrogens(mol, node_to_idx[atom_id], ha.nhydrogens)
 
     if not get_rw_mol:
         # Convert RWMol to Mol object

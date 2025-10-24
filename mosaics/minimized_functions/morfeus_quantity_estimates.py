@@ -13,6 +13,7 @@ from xtb.utils import get_method, get_solvent
 
 from ..data import conversion_coefficient, room_T
 from ..misc_procedures import (
+    InvalidAdjMat,
     all_None_dict,
     any_element_in_list,
     checked_environ_val,
@@ -20,7 +21,6 @@ from ..misc_procedures import (
     weighted_array,
 )
 from ..rdkit_utils import chemgraph_to_canonical_rdkit
-from ..valence_treatment import InvalidAdjMat
 from ..xyz2graph import chemgraph_from_ncharges_coords
 
 RDLogger.DisableLog("rdApp.*")
@@ -34,7 +34,7 @@ def morfeus_coord_info_from_tp(
     all_confs=False,
     temperature=room_T,
     coord_validity_check=True,
-    **dummy_kwargs
+    **dummy_kwargs,
 ):
     """
     Coordinates generated for a TrajectoryPoint object using Morfeus.
@@ -133,7 +133,8 @@ def xTB_singlepoint_res_no_error_check(
 def xTB_singlepoint_res(*args, **kwargs):
     try:
         return xTB_singlepoint_res_no_error_check(*args, **kwargs)
-    except:
+    except Exception as ex:
+        print("PROBLEM:", ex)
         return None
 
 
@@ -211,7 +212,7 @@ def morfeus_FF_xTB_code_quants_weighted(
     quantities=[],
     remaining_rho=None,
     coord_validity_check=True,
-    **xTB_quants_kwargs
+    **xTB_quants_kwargs,
 ):
     coord_info = morfeus_coord_info_from_tp(
         tp,
@@ -247,7 +248,7 @@ def morfeus_FF_xTB_code_quants(
     ff_type="MMFF94",
     quantities=[],
     remaining_rho=None,
-    **xTB_quants_kwargs
+    **xTB_quants_kwargs,
 ):
     """
     Use morfeus-ml FF coordinates with Grimme lab's xTB code to calculate some quantities.
@@ -261,7 +262,7 @@ def morfeus_FF_xTB_code_quants(
             ff_type=ff_type,
             quantities=quantities,
             remaining_rho=remaining_rho,
-            **xTB_quants_kwargs
+            **xTB_quants_kwargs,
         )
         if av_res is None:
             quant_arrs = all_None_dict(quantities)
@@ -305,7 +306,7 @@ class LinComb_Morfeus_xTB_code:
         add_mult_funcs=None,
         add_mult_func_powers=None,
         xTB_res_dict_name="xTB_res",
-        **xTB_related_kwargs
+        **xTB_related_kwargs,
     ):
         self.quantities = quantities
         self.coefficients = coefficients

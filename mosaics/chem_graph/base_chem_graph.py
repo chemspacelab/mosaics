@@ -8,7 +8,15 @@ import operator
 import numpy as np
 from igraph import Graph
 
-from ..misc_procedures import VERBOSITY, VERBOSITY_MUTED, list2colors, set_verbosity, sorted_tuple
+from ..misc_procedures import (
+    VERBOSITY,
+    VERBOSITY_MUTED,
+    InvalidAdjMat,
+    list2colors,
+    permutation_inverse,
+    set_verbosity,
+    sorted_tuple,
+)
 from ..periodic import coord_num_hybrid, unshared_pairs
 from .heavy_atom import HeavyAtom, default_valence
 
@@ -95,9 +103,7 @@ def canonical_permutation_with_inverse(graph, colors):
     Return canonical permutation in terms of both forward and inverse arrays.
     """
     canonical_permutation = np.array(graph.canonical_permutation(color=colors))
-    inv_canonical_permutation = np.zeros(len(colors), dtype=int)
-    for pos_counter, pos in enumerate(canonical_permutation):
-        inv_canonical_permutation[pos] = pos_counter
+    inv_canonical_permutation = permutation_inverse(canonical_permutation)
     return canonical_permutation, inv_canonical_permutation
 
 
@@ -112,10 +118,7 @@ def ha_graph_comparison_list(
     Create an integer list uniquely representing a graph with HeavyAtom objects as nodes with a known canonical permutation.
     Used to define instances of ChemGraph along with node neighborhoods.
     """
-    if charge is None:
-        comparison_list = []
-    else:
-        comparison_list = [charge]
+    comparison_list = [len(ha_trivial_comparison_lists)]
     for perm_hatom_id, hatom_id in enumerate(inv_canonical_permutation):
         comparison_list += list(ha_trivial_comparison_lists[hatom_id])
         perm_neighs = []
@@ -125,6 +128,8 @@ def ha_graph_comparison_list(
                 perm_neighs.append(perm_id)
         comparison_list.append(len(perm_neighs))
         comparison_list += sorted(perm_neighs)
+    if charge is not None:
+        comparison_list.append(charge)
     return comparison_list
 
 
@@ -189,6 +194,9 @@ class BaseChemGraph:
                     self.graph.add_edge(true_id, heavy_atom_dict[ha_id2])
                     continue
             else:
+                if ha_id2 not in heavy_atom_dict:
+                    # this means the graph contains molecular hydrogen; the code was not designed for that.
+                    raise InvalidAdjMat("Contains molecular hydrogen.")
                 assert ha_id2 in heavy_atom_dict
                 true_id = heavy_atom_dict[ha_id2]
             self.hatoms[true_id].nhydrogens += 1
@@ -715,6 +723,10 @@ class BaseChemGraph:
             self.canonical_permutation,
             self.inv_canonical_permutation,
         ) = canonical_permutation_with_inverse(self.graph, self.colors)
+
+    def get_canonical_permutation(self):
+        self.init_canonical_permutation()
+        return self.canonical_permutation
 
     def get_inv_canonical_permutation(self):
         self.init_canonical_permutation()

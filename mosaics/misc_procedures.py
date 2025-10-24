@@ -360,3 +360,11 @@ def merge_unrepeated_sorted_lists(base_list, added_list):
 def all_equal(iterable):
     g = groupby(iterable)
     return next(g, True) and not next(g, False)
+
+
+# used for inverse canonical permutation
+def permutation_inverse(permutation_array):
+    inv_permutation_array = np.zeros(permutation_array.shape, dtype=int)
+    for pos_counter, pos in enumerate(permutation_array):
+        inv_permutation_array[pos] = pos_counter
+    return inv_permutation_array

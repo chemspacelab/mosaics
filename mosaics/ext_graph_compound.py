@@ -2,7 +2,13 @@ import numpy as np
 
 from .chem_graph import ChemGraph, str2ChemGraph
 from .data import NUCLEAR_CHARGE
-from .misc_procedures import int_atom_checked, intlog, sorted_by_membership, sorted_tuple
+from .misc_procedures import (
+    int_atom_checked,
+    intlog,
+    permutation_inverse,
+    sorted_by_membership,
+    sorted_tuple,
+)
 
 hydrogen_equivalence_class = -1  # Equivalence class reserved for hydrogen.
 
@@ -48,6 +54,11 @@ class ExtGraphCompound:
         )
         # In case we want to attach more data to the same entry.
         self.additional_data = additional_data
+
+        # in case we need canonical permutations and equivalence classes of the original adjacency matrix.
+        self.original_canonical_permutation = None
+        self.inv_original_canonical_permutation = None
+        self.original_equivalence_vector = None
 
     def get_adjacency_matrix(self):
         if self.adjacency_matrix is None:
@@ -117,7 +128,7 @@ class ExtGraphCompound:
         Mainly introduced for KRR-related norm sorting resolved with respect to invariant atoms.
         """
         # Generate averages of sort_vals over different equivalence classes.
-        original_equivalence_classes = self.original_equivalence_classes()
+        original_equivalence_classes = self.get_partial_original_equivalence_classes()
         equiv_class_sort_vals = sorted_by_membership(original_equivalence_classes, l=sort_vals)
         # Find averages corresponding to equivalence classes.
         equiv_class_comp_tuples = []
@@ -147,7 +158,49 @@ class ExtGraphCompound:
         atom_comp_tuples.sort()
         return np.array([atom_comp_tuple[-1] for atom_comp_tuple in atom_comp_tuples])
 
-    def original_equivalence_classes(self):
+    def init_original_canonical_permutation(self):
+        """
+        Initialize canonical permutation for the original coordinates. The heavy atoms are grouped the same way as BaseChemGraph, with hydrogen atoms connected to a heavy atom placed straight after the corresponding heavy atom.
+        """
+        if (self.original_canonical_permutation is not None) and (
+            self.inv_original_canonical_permutation is not None
+        ):
+            return
+        cg_canonical_permutation = self.chemgraph.get_canonical_permutation()
+        cg_inv_canonical_permutation = self.chemgraph.get_inv_canonical_permutation()
+        # first find the new positions of heavy atoms in the canonical ordering
+        current_encountered_hydrogens = 0
+        shifted_canonical = np.copy(cg_canonical_permutation)
+        for hatom_id in cg_inv_canonical_permutation:
+            shifted_canonical[hatom_id] += current_encountered_hydrogens
+            current_encountered_hydrogens += self.chemgraph.hatoms[hatom_id].nhydrogens
+
+        encountered_hydrogens = np.zeros(cg_canonical_permutation.shape, dtype=int)
+        self.original_canonical_permutation = np.empty(self.num_atoms(), dtype=int)
+        for atom_id, ncharge in enumerate(self.original_nuclear_charges):
+            if ncharge == 1:
+                connected_hatom_original = self.original_hydrogen_hatom(atom_id)
+                connected_hatom = self.original_chemgraph_mapping[connected_hatom_original]
+                canonical_position = (
+                    shifted_canonical[connected_hatom] + encountered_hydrogens[connected_hatom] + 1
+                )
+                encountered_hydrogens[connected_hatom] += 1
+            else:
+                canonical_position = shifted_canonical[self.original_chemgraph_mapping[atom_id]]
+            self.original_canonical_permutation[atom_id] = canonical_position
+        self.inv_original_canonical_permutation = permutation_inverse(
+            self.original_canonical_permutation
+        )
+
+    def get_original_canonical_permutation(self):
+        self.init_original_canonical_permutation()
+        return self.original_canonical_permutation
+
+    def get_inv_original_canonical_permutation(self):
+        self.init_original_canonical_permutation()
+        return self.inv_original_canonical_permutation
+
+    def get_partial_original_equivalence_classes(self):
         """
         self.chemgraph.checked_equivalence_vector output mapped on original nuclear_charges and adjacency_matrix.
         hydrogen atoms are assigned equivalence class -1.
@@ -157,6 +210,36 @@ class ExtGraphCompound:
         for hatom_id, equiv_class in enumerate(chemgraph_equiv_vector):
             output[self.inv_original_chemgraph_mapping[hatom_id]] = equiv_class
         return output
+
+    def get_original_equivalence_classes(self):
+        """
+        Assign equivalence classes to each of the original atoms, including hydrogens. The latter are assigned equivalence classes in the same order as heavy atoms they are connected to.
+        """
+        original_equivalence_vector = self.get_partial_original_equivalence_classes()
+        connected_hydrogens_equivalence_classes = np.copy(
+            self.chemgraph.checked_equivalence_vector()
+        )
+        last_equiv_class = np.max(connected_hydrogens_equivalence_classes) + 1
+
+        nhatom_classes = self.chemgraph.num_equiv_classes(1)
+
+        for class_id in range(nhatom_classes):
+            hatom_ids = np.where(connected_hydrogens_equivalence_classes == class_id)[0]
+            nhydrogens = self.chemgraph.hatoms[hatom_ids[0]].nhydrogens
+            if nhydrogens == 0:
+                continue
+            connected_hydrogens_equivalence_classes[hatom_ids] = last_equiv_class
+            last_equiv_class += 1
+
+        for atom_id, ncharge in enumerate(self.original_nuclear_charges):
+            if ncharge != 1:
+                continue
+            connected_atom_id = self.original_hydrogen_hatom(atom_id)
+            hatom_id = self.original_chemgraph_mapping[connected_atom_id]
+            equiv_class = connected_hydrogens_equivalence_classes[hatom_id]
+            original_equivalence_vector[atom_id] = equiv_class
+
+        return original_equivalence_vector
 
     def is_connected(self):
         return self.chemgraph.is_connected()

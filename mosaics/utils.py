@@ -6,6 +6,8 @@ import numpy as np
 from igraph import Graph
 from sortedcontainers import SortedList
 
+from .chem_graph import ChemGraph
+from .chem_graph.heavy_atom import HeavyAtom
 from .ext_graph_compound import ExtGraphCompound
 from .misc_procedures import int_atom, str_atom_corr
 
@@ -253,3 +255,58 @@ def mkdir(dirname):
 
 def rmdir(dirname):
     run("rm", "-Rf", dirname)
+
+
+# For using comparison lists for vector searches (e.g. in a Milvus client).
+def calc_max_comparison_list_length(max_nhatoms, max_valence=6):
+    """
+    Maximum length of a graph comparison list (w. color_defining_neighborhood_radius=0) obtained for ChemGraphs with up to nhatoms heavy atoms that have a maximum of max_valence valence.
+    """
+    # 1 entry optionally corresponds to charge
+    max_comparison_list_length = 1
+    # for each heavy atom write its nuclear charge, number of hydrogens, and number of neighbors listed after the corresponding entry
+    max_comparison_list_length += 3 * max_nhatoms
+    # total length of neighbor lists.
+    max_comparison_list_length += max_nhatoms * max_valence // 2
+    return max_comparison_list_length
+
+
+def padded_comparison_list(
+    cg: ChemGraph, max_comparison_list_length=None, max_nhatoms=None, max_valence=6
+):
+    """
+    Generated padded representation vector for ChemGraph.
+    """
+    if max_comparison_list_length is None:
+        assert max_nhatoms is not None
+        max_comparison_list_length = calc_max_comparison_list_length(
+            max_nhatoms, max_valence=max_valence
+        )
+    padded_comp_list = np.zeros(max_comparison_list_length, dtype=int)
+    comp_list = cg.get_comparison_list()
+    padded_comp_list[: len(comp_list)] = comp_list[:]
+    return padded_comp_list
+
+
+def comparison_list_to_chemgraph(comp_list):
+    """
+    Recover a ChemGraph from a comparison list.
+    """
+    nhatoms = comp_list[0]
+    hatoms = []
+    graph = Graph(n=nhatoms, directed=False)
+    current_entry_id = 1
+    for hatom_id in range(nhatoms):
+        ncharge = comp_list[current_entry_id]
+        current_entry_id += 1
+        nhydrogens = comp_list[current_entry_id]
+        hatoms.append(HeavyAtom(ncharge, nhydrogens))
+        current_entry_id += 1
+        num_neighbors = comp_list[current_entry_id]
+        for _ in range(num_neighbors):
+            current_entry_id += 1
+            neighbor_internal_id = comp_list[current_entry_id]
+            graph.add_edge(hatom_id, neighbor_internal_id)
+        current_entry_id += 1
+    charge = comp_list[current_entry_id]
+    return ChemGraph(graph=graph, hatoms=hatoms, charge=charge)

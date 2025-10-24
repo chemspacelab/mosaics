@@ -78,8 +78,8 @@ class HeavyAtom:
     def __init__(
         self,
         atom_symbol,
-        valence=None,
         nhydrogens=0,
+        valence=None,
         possible_valences=None,
         charge=0,
         charge_feasibility=0,
