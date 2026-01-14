@@ -27,10 +27,10 @@ dependencies:
   - zlib=1.2.13=hd590300_5
   - pip:
       - cloudpickle==3.0.0
-      - igraph==0.11.4
+      - igraph==1.0.0
       - joblib==1.3.2
       - loky==3.4.1
       - numpy==1.26.4
+      - scipy==1.13.1
       - sortedcontainers==2.4.0
       - texttable==1.7.0
-prefix: /home/guest/miniconda3/envs/mosaics_test

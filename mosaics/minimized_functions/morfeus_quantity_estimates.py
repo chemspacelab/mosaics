@@ -3,6 +3,7 @@ import copy
 import numpy as np
 
 # Morfeus - used for coordinate generation.
+# NOTE: used morfeus-ml <=0.7.2
 from morfeus.conformer import ConformerEnsemble
 from rdkit import RDLogger
 from xtb.interface import Calculator

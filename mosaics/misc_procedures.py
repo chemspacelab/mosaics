@@ -9,7 +9,11 @@ import numpy as np
 from .data import NUCLEAR_CHARGE
 
 
-class InvalidAdjMat(Exception):
+class InvalidGraphDefinition(Exception):
+    pass
+
+
+class InvalidAdjMat(InvalidGraphDefinition):
     pass
 
 

@@ -6,7 +6,7 @@ requires = [
 
 [project]
 name = "mosaics"
-version = "0.3.1"
+version = "0.3.2"
 
 description = "Evolutionary Monte Carlo algorithm for optimization in chemical space."
 readme = "README.md"
@@ -16,16 +16,17 @@ authors = [
   { name = "Jan Weinreich" },
 ]
 # TBH should work earlier Python versions too, but that is untested.
-requires-python = ">=3.11"
+requires-python = ">=3.9"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
-# igraph 1.0.0 release is incompatible with MOSAiCS; will be fixed in the future.
 dependencies = [
-  "igraph<=0.11.9",
+  "igraph>=1",
   "joblib",
   "loky",
   "numpy",

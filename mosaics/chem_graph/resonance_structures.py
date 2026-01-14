@@ -1,5 +1,7 @@
 """
 Procedures for generating resonance structures inside ChemGraph objects.
+
+TODO: bit of a mess, should be revised
 """
 
 import itertools
@@ -8,7 +10,7 @@ from copy import deepcopy
 import numpy as np
 
 from ..misc_procedures import InvalidAdjMat, all_equal, sorted_by_membership, sorted_tuple
-from ..periodic import max_charge_feasibility
+from ..periodic import get_max_charge_feasibility
 from .base_chem_graph import BaseChemGraph
 from .heavy_atom import HeavyAtom
 
@@ -81,7 +83,8 @@ def feasibility_checked_charges_valences(
     if hatom.can_be_charged(charge_feasibility):
         return avail_charges, avail_valences
     else:
-        assert avail_charges[0] == 0, InvalidAdjMat
+        if avail_charges[0] != 0:
+            raise InvalidAdjMat
         return avail_charges[:1], avail_valences[:1]
 
 
@@ -108,6 +111,9 @@ class ExtraValenceSubgraph:
         self.subgraph_avail_valences = subgraph_avail_valences
 
         self.charge_feasibility = charge_feasibility
+
+    def assign_charge_feasibility(self, new_charge_feasibility):
+        self.charge_feasibility = new_charge_feasibility
 
     def empty_id_lists(self):
         return [[] for _ in self.extra_val_ids]
@@ -144,7 +150,7 @@ class ExtraValenceSubgraph:
         self.HeavyAtomCharges_divisors = divide_by_character(
             self.HeavyAtomCharges,
             ChargeConfigurationCharacter,
-            **charge_configuration_character_kwargs
+            **charge_configuration_character_kwargs,
         )
 
     def init_piecewise_valences_charges_iterator(self):
@@ -476,14 +482,14 @@ def create_local_resonance_structure_single_charge_feasibility(
     extra_valence_subgraph: ExtraValenceSubgraph,
     charge_feasibility: int,
 ):
-    extra_valence_subgraph.charge_feasibility = charge_feasibility
+    extra_valence_subgraph.assign_charge_feasibility(charge_feasibility)
     valid_valence_configuration_character = None
     tot_subgraph_res_struct = []
     valence_option_ids = []
     current_valence_option = 0
     try:
         extra_valence_iterator = iter(extra_valence_subgraph)
-    except StopIteration:
+    except (StopIteration, InvalidAdjMat):
         return False, None
     while True:
         try:
@@ -601,5 +607,5 @@ def create_resonance_structures(chemgraph: BaseChemGraph):
         except InvalidAdjMat:
             # try assigning more charges
             chemgraph.overall_charge_feasibility += 1
-            if chemgraph.overall_charge_feasibility > max_charge_feasibility:
+            if chemgraph.overall_charge_feasibility > get_max_charge_feasibility():
                 raise InvalidAdjMat

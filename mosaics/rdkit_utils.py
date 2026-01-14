@@ -22,7 +22,10 @@ class RdKitFailure(Exception):
 
 
 #   For going between rdkit and egc objects.
-def rdkit_to_egc(rdkit_mol, return_chemgraph=False):
+def rdkit_to_egc(rdkit_mol, return_chemgraph=False, explicit_hydrogens=False):
+    if not explicit_hydrogens:
+        rdkit_mol = Chem.AddHs(rdkit_mol)
+
     nuclear_charges = [atom.GetAtomicNum() for atom in rdkit_mol.GetAtoms()]
     adjacency_matrix = GetAdjacencyMatrix(rdkit_mol)
 
@@ -45,19 +48,20 @@ def rdkit_to_egc(rdkit_mol, return_chemgraph=False):
 
 
 #   For converting SMILES to egc.
-def SMILES_to_egc(smiles_string, return_chemgraph=False):
+def SMILES_to_egc(smiles_string, return_chemgraph=False, explicit_hydrogens=False):
     mol = Chem.MolFromSmiles(smiles_string)
     if mol is None:
         raise RdKitFailure
-    mol = Chem.AddHs(mol)
-    egc_out = rdkit_to_egc(mol, return_chemgraph=return_chemgraph)
+    egc_out = rdkit_to_egc(
+        mol, return_chemgraph=return_chemgraph, explicit_hydrogens=explicit_hydrogens
+    )
     if not return_chemgraph:
         egc_out.additional_data["SMILES"] = smiles_string
     return egc_out
 
 
-def SMILES_to_chemgraph(SMILES):
-    return SMILES_to_egc(SMILES, return_chemgraph=True)
+def SMILES_to_chemgraph(SMILES, explicit_hydrogens=False):
+    return SMILES_to_egc(SMILES, return_chemgraph=True, explicit_hydrogens=explicit_hydrogens)
 
 
 def rdkit_to_chemgraph(rdkit_mol):
@@ -210,7 +214,32 @@ def chemgraph_to_rdkit(
 
 
 def egc_to_rdkit(egc: ExtGraphCompound, **kwargs):
-    return chemgraph_to_rdkit(egc.chemgraoh, **kwargs)
+    return chemgraph_to_rdkit(egc.chemgraph, **kwargs)
+
+
+def egc_to_original_rdkit(egc: ExtGraphCompound):
+    """
+    From ExtGraphCompound instance generate an RDKit molecule whose atom order is strictly the same as in the original adjacency matrix and nuclear charges used to define the ExtGraphCompound instance.
+    """
+    original_corrected_adj_mat = egc.get_original_corrected_adjacency_matrix()
+    original_nuclear_charges = egc.original_nuclear_charges
+    mol = Chem.RWMol()
+    for atom_id1, nc1 in enumerate(original_nuclear_charges):
+        new_atom = Chem.Atom(int(nc1))
+
+        if nc1 != 1:
+            hatom_id1 = egc.original_chemgraph_mapping[atom_id1]
+            current_charge = get_current_charge(egc.chemgraph, hatom_id1)
+            if current_charge != 0:
+                new_atom.SetFormalCharge(current_charge)
+
+        mol.AddAtom(new_atom)
+        for atom_id2 in range(atom_id1):
+            bo = original_corrected_adj_mat[atom_id1, atom_id2]
+            if bo == 0:
+                continue
+            mol.AddBond(atom_id1, atom_id2, rdkit_bond_type[bo])
+    return mol
 
 
 def chemgraph_to_canonical_rdkit(

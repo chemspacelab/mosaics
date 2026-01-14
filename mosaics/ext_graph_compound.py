@@ -3,6 +3,7 @@ import numpy as np
 from .chem_graph import ChemGraph, str2ChemGraph
 from .data import NUCLEAR_CHARGE
 from .misc_procedures import (
+    InvalidAdjMat,
     int_atom_checked,
     intlog,
     permutation_inverse,
@@ -32,6 +33,7 @@ class ExtGraphCompound:
             nuclear_charges = [NUCLEAR_CHARGE[element] for element in elements]
         self.original_nuclear_charges = nuclear_charges
         self.original_adjacency_matrix = adjacency_matrix
+        self.original_hydrogens_sanity_check()
         self.coordinates = coordinates
         if chemgraph is None:
             if (nuclear_charges is not None) and (
@@ -60,10 +62,46 @@ class ExtGraphCompound:
         self.inv_original_canonical_permutation = None
         self.original_equivalence_vector = None
 
+    def original_hydrogens_sanity_check(self):
+        """
+        Separately check that hydrogen valences make sense and there are no hydrogen molecules present.
+        """
+        # Done here because wayward hydrogens can cause very sneaky bugs.
+        if self.original_nuclear_charges is None or self.original_adjacency_matrix is None:
+            return
+        for atom_id, ncharge in enumerate(self.original_nuclear_charges):
+            if ncharge != 1:
+                continue
+            connected_atoms = np.where(self.original_adjacency_matrix[atom_id] != 0)[0]
+            if connected_atoms.shape[0] != 1:
+                raise InvalidAdjMat("Valence of a hydrogen not equal one!")
+            if self.original_nuclear_charges[connected_atoms[0]] == 1:
+                raise InvalidAdjMat(
+                    "Found hydrogen atoms connected to each other; molecular hydrogen not supported!"
+                )
+
     def get_adjacency_matrix(self):
         if self.adjacency_matrix is None:
             self.adjacency_matrix = self.chemgraph.full_adjmat()
         return self.adjacency_matrix
+
+    def get_original_corrected_adjacency_matrix(self):
+        """
+        Recover the original adjacency matrix with bonds between heavy atoms corrected according to the underlying ChemGraph instance.
+        """
+        full_adj_mat = np.copy(self.original_adjacency_matrix)
+        for i1, nc1 in enumerate(self.original_nuclear_charges):
+            for i2, nc2 in enumerate(self.original_nuclear_charges[:i1]):
+                if nc1 == 1 or nc2 == 1:
+                    continue
+                if full_adj_mat[i1, i2] == 0:
+                    continue
+                cg_i1 = self.original_chemgraph_mapping[i1]
+                cg_i2 = self.original_chemgraph_mapping[i2]
+                corrected_bond_order = self.chemgraph.bond_order(cg_i1, cg_i2)
+                full_adj_mat[i1, i2] = corrected_bond_order
+                full_adj_mat[i2, i1] = corrected_bond_order
+        return full_adj_mat
 
     def original_hydrogen_hatom(self, hydrogen_id):
         adj_mat_row = self.original_adjacency_matrix[hydrogen_id]

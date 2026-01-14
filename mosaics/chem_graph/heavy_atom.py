@@ -5,20 +5,12 @@ All procedures for handling nodes: heavy atoms with the hydrogens connected to t
 # NOTE For now I am leaving min_valence, max_valence, and next_valence working only with uncharged atoms, because they are only called during RandomWalks, which cannot currently change charges anyway.
 from sortedcontainers import SortedList
 
+from .. import periodic as per
 from ..misc_procedures import InvalidAdjMat, int_atom_checked, str_atom_corr
-from ..periodic import (
-    available_charges_lists,
-    charge_feasibility_list,
-    charged_valences_int,
-    p_int,
-    period_int,
-    s_int,
-    valences_int,
-)
 
 
 def can_be_charged(atom_id, charge_feasibility=0):
-    for cur_charge_list in charge_feasibility_list[:charge_feasibility]:
+    for cur_charge_list in per.charge_feasibility_list[:charge_feasibility]:
         if atom_id in cur_charge_list:
             return True
     return False
@@ -30,9 +22,9 @@ def avail_val_list(atom_id, charge=0):
     """
     atom_id = int_atom_checked(atom_id)
     if (charge is None) or (charge == 0):
-        return valences_int[atom_id]
+        return per.valences_int[atom_id]
     else:
-        return charged_valences_int[atom_id][charge]
+        return per.charged_valences_int[atom_id][charge]
 
 
 def cut_avail_val_list(atom_id, charge=0, coordination_number=0):
@@ -114,14 +106,14 @@ class HeavyAtom:
         )
         if self.can_be_charged(charge_feasibility=charge_feasibility):
             additional_charges = []
-            for avail_charges_dict in available_charges_lists[:charge_feasibility]:
+            for avail_charges_dict in per.available_charges_lists[:charge_feasibility]:
                 if self.ncharge not in avail_charges_dict:
                     continue
                 cur_add_charges = avail_charges_dict[self.ncharge]
                 if isinstance(cur_add_charges, int):
                     additional_charges.append(cur_add_charges)
                 else:
-                    additional_charges += cur_add_charges
+                    additional_charges += list(cur_add_charges)
             for charge in additional_charges:
                 cur_has_extra_valence = add_avail_charges_valences(
                     avail_charges,
@@ -151,14 +143,14 @@ class HeavyAtom:
         self.possible_charges = None
 
     def is_polyvalent(self):
-        return isinstance(valences_int[self.ncharge], tuple)
+        return isinstance(per.valences_int[self.ncharge], tuple)
 
     def can_be_charged(self, charge_feasibility=0):
         return can_be_charged(self.ncharge, charge_feasibility=charge_feasibility)
 
     def charge_reasonable(self, charge_feasibility=0):
         if self.can_be_charged(charge_feasibility=charge_feasibility):
-            for avail_charge_dict in available_charges_lists[:charge_feasibility]:
+            for avail_charge_dict in per.available_charges_lists[:charge_feasibility]:
                 if self.ncharge not in avail_charge_dict:
                     continue
                 charges = avail_charge_dict[self.ncharge]
@@ -254,9 +246,9 @@ def next_valence(ha: HeavyAtom, int_step: int = 1, valence_option_id: int or Non
 # Functions that should help defining a meaningful distance measure between Heavy_Atom objects. TODO: Still need those?
 def hatom_state_coords(ha):
     return [
-        period_int[ha.ncharge],
-        s_int[ha.ncharge],
-        p_int[ha.ncharge],
+        per.period_int[ha.ncharge],
+        per.s_int[ha.ncharge],
+        per.p_int[ha.ncharge],
         ha.valence,
         ha.nhydrogens,
     ]

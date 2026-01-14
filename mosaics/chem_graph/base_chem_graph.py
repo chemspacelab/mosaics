@@ -98,12 +98,12 @@ def misc_global_variables_current_kwargs():
     }
 
 
-def canonical_permutation_with_inverse(graph, colors):
+def canonical_permutation_with_inverse(graph: Graph, colors):
     """
     Return canonical permutation in terms of both forward and inverse arrays.
     """
-    canonical_permutation = np.array(graph.canonical_permutation(color=colors))
-    inv_canonical_permutation = permutation_inverse(canonical_permutation)
+    inv_canonical_permutation = np.array(graph.canonical_permutation(color=colors))
+    canonical_permutation = permutation_inverse(inv_canonical_permutation)
     return canonical_permutation, inv_canonical_permutation
 
 
@@ -616,6 +616,12 @@ class BaseChemGraph:
         """
         return sum(hatom.nhydrogens for hatom in self.hatoms)
 
+    def tot_nelectrons(self):
+        """
+        Total number of electrons in the molecule.
+        """
+        return self.tot_nhydrogens() + sum(ha.ncharge for ha in self.hatoms) - self.charge
+
     def natoms(self):
         """
         Total number of atoms.
@@ -647,9 +653,12 @@ class BaseChemGraph:
         if new_edge_order < 0:
             raise InvalidChange
         if new_edge_order == 0:
-            self.graph.delete_edges([true_bond_tuple])
+            if self.graph.are_connected(*true_bond_tuple):
+                self.graph.delete_edges([true_bond_tuple])
             del self.bond_orders[true_bond_tuple]
         else:
+            if not self.graph.are_connected(*true_bond_tuple):
+                self.graph.add_edge(*true_bond_tuple)
             self.bond_orders[true_bond_tuple] = new_edge_order
 
     def assign_extra_edge_orders(self, changed_hatom_ids, extra_order_dict):
@@ -683,7 +692,6 @@ class BaseChemGraph:
             cur_edge_order = self.bond_orders[true_bond_tuple]
         except KeyError:
             cur_edge_order = 0
-            self.graph.add_edge(*true_bond_tuple)
         new_edge_order = cur_edge_order + change
         if new_edge_order < 0:
             raise InvalidChange
@@ -693,6 +701,15 @@ class BaseChemGraph:
         self.hatoms[atom_id].nhydrogens += hydrogen_number_change
         if self.hatoms[atom_id].nhydrogens < 0:
             raise InvalidChange
+
+    def append_heavy_atom(self, atom_ncharge, nhydrogens=None):
+        """
+        Simply append a new heavy atom with nuclear charge of atom_ncharge and nhydrogens attached hydrogens without checking correctness of the resulting valences or creating any new bonds.
+        """
+        if nhydrogens is None:
+            nhydrogens = default_valence(atom_ncharge)
+        self.graph.add_vertex()
+        self.hatoms.append(HeavyAtom(atom_ncharge, nhydrogens=nhydrogens))
 
     # Output properties that include hydrogens.
     def full_ncharges(self):

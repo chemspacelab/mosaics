@@ -8,6 +8,7 @@ from .chem_graph import (
     ChemGraph,
     canonically_permuted_ChemGraph,
     split_chemgraph_into_connected_fragments,
+    split_chemgraph_into_counted_connected_fragments,
     split_chemgraph_no_dissociation_check,
     str2ChemGraph,
 )

@@ -419,6 +419,13 @@ class ChemGraph(BaseChemGraph):
         # all the bonds with extra valences. All other ("missing") bond orders should be given order 1.
         self.fill_missing_bond_orders()
 
+    def check_is_reasonable(self):
+        """
+        Check that the ChemGraph instance's adjacency matrix and charge make sense.
+        """
+        self.changed()
+        self.init_resonance_structures()
+
     # More sophisticated commands that are to be called in the "modify" module.
     def change_bond_order(self, atom1, atom2, bond_order_change, resonance_structure_id=None):
         if bond_order_change != 0:
@@ -491,7 +498,10 @@ class ChemGraph(BaseChemGraph):
                 new_tuple.append(b)
             new_bond_orders[tuple(new_tuple)] = bond_order
         self.bond_orders = new_bond_orders
+        removed_charge = self.hatoms[atom_id].charge
         del self.hatoms[atom_id]
+        if removed_charge is not None:
+            self.charge -= removed_charge
         self.changed()
 
     def remove_heavy_atoms(self, atom_ids):
@@ -762,14 +772,24 @@ def split_chemgraph_no_dissociation_check(cg_input, membership_vector, copied=Fa
     return output
 
 
-def split_chemgraph_into_connected_fragments(cg_input, copied=False):
+def split_chemgraph_into_connected_fragments(cg_input: ChemGraph, copied=False):
     connected_fragment_membership_vector = cg_input.graph.components().membership
     return split_chemgraph_no_dissociation_check(
         cg_input, connected_fragment_membership_vector, copied=copied
     )
 
 
-def combine_chemgraphs(cg1, cg2):
+def split_chemgraph_into_counted_connected_fragments(cg_input: ChemGraph, copied=False):
+    fragment_list = split_chemgraph_into_connected_fragments(cg_input, copied=copied)
+    output_dict = {}
+    for cg in fragment_list:
+        if cg not in output_dict:
+            output_dict[cg] = 0
+        output_dict[cg] += 1
+    return output_dict
+
+
+def combine_chemgraphs(cg1: ChemGraph, cg2: ChemGraph):
     new_hatoms = copy.deepcopy(cg1.hatoms + cg2.hatoms)
     new_graph = disjoint_union([cg1.graph, cg2.graph])
     id2_shift = cg1.nhatoms()
@@ -777,7 +797,12 @@ def combine_chemgraphs(cg1, cg2):
     for bond_tuple, bond_order in cg2.bond_orders.items():
         new_bond_tuple = tuple(np.array(bond_tuple) + id2_shift)
         new_bond_orders[new_bond_tuple] = bond_order
-    return ChemGraph(hatoms=new_hatoms, bond_orders=new_bond_orders, graph=new_graph)
+    return ChemGraph(
+        hatoms=new_hatoms,
+        bond_orders=new_bond_orders,
+        graph=new_graph,
+        charge=cg1.charge + cg2.charge,
+    )
 
 
 def h2chemgraph():
