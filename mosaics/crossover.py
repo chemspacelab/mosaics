@@ -15,7 +15,7 @@ from igraph.operators import disjoint_union
 from sortedcontainers import SortedList
 
 from .chem_graph import ChemGraph, InvalidChange
-from .chem_graph.resonance_structures import max_bo
+from .chem_graph.heavy_atom import max_bo_pair
 from .ext_graph_compound import atom_multiplicity_in_list, connection_forbidden
 from .misc_procedures import intlog, sorted_by_membership, sorted_tuple
 
@@ -389,7 +389,7 @@ def valid_cross_connection(cg1, cg2, tlist1, tlist2, bo, forbidden_bonds=None):
         for new_bond in [(t1[0], t2[1]), (t1[1], t2[0])]:
             ha1 = cg1.hatoms[new_bond[0]]
             ha2 = cg2.hatoms[new_bond[1]]
-            if bo > max_bo(ha1, ha2):
+            if bo > max_bo_pair(ha1, ha2):
                 return False
             if connection_forbidden(ha1.ncharge, ha2.ncharge, forbidden_bonds):
                 return False

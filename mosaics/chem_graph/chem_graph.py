@@ -8,7 +8,7 @@ import random
 import numpy as np
 from igraph.operators import disjoint_union
 
-from ..misc_procedures import int_atom_checked, sorted_by_membership, sorted_tuple
+from ..misc_procedures import InvalidAdjMat, int_atom_checked, sorted_by_membership, sorted_tuple
 from .base_chem_graph import BaseChemGraph
 from .heavy_atom import HeavyAtom, default_valence
 from .resonance_structures import create_resonance_structures
@@ -425,6 +425,9 @@ class ChemGraph(BaseChemGraph):
         """
         self.changed()
         self.init_resonance_structures()
+        for ha in self.hatoms:
+            if ha.nhydrogens < 0:
+                raise InvalidAdjMat("Some hydrogen numbers are negative!")
 
     # More sophisticated commands that are to be called in the "modify" module.
     def change_bond_order(self, atom1, atom2, bond_order_change, resonance_structure_id=None):

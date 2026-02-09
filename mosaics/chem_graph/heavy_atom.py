@@ -199,6 +199,9 @@ class HeavyAtom:
     def element_name(self):
         return str_atom_corr(self.ncharge)
 
+    def max_bo(self):
+        return per.max_bo_ncharge(self.ncharge)
+
     # Procedures for ordering.
     def get_comparison_list(self):
         return [self.ncharge, self.nhydrogens]
@@ -221,6 +224,10 @@ class HeavyAtom:
 
     def __repr__(self):
         return str(self)
+
+
+def max_bo_pair(hatom1: HeavyAtom, hatom2: HeavyAtom):
+    return per.max_bo_ncharges(hatom1.ncharge, hatom2.ncharge)
 
 
 # TODO check that the function is not duplicated elsewhere

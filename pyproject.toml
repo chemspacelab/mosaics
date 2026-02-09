@@ -6,7 +6,7 @@ requires = [
 
 [project]
 name = "mosaics"
-version = "0.3.2"
+version = "0.3.3"
 
 description = "Evolutionary Monte Carlo algorithm for optimization in chemical space."
 readme = "README.md"

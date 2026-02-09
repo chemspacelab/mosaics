@@ -10,9 +10,9 @@ from copy import deepcopy
 import numpy as np
 
 from .chem_graph.heavy_atom import avail_val_list, default_valence, next_valence
-from .chem_graph.resonance_structures import max_bo
 from .ext_graph_compound import ExtGraphCompound, connection_forbidden
 from .misc_procedures import int_atom_checked, sorted_tuple
+from .periodic import max_bo_ncharges
 
 
 def atom_equivalent_to_list_member(egc, atom_id, atom_id_list):
@@ -228,7 +228,7 @@ def chain_addition_possibilities(
             if atom_equivalent_to_list_member(egc, ha_id, possible_ids):
                 continue
         for added_bond_order in avail_added_bond_order:
-            if added_bond_order > max_bo(ha, chain_starting_ncharge):
+            if added_bond_order > max_bo_ncharges(ha.ncharge, chain_starting_ncharge):
                 continue
             if added_bond_order <= ha.nhydrogens:
                 if chain_addition_tuple_possibilities:
@@ -271,7 +271,7 @@ def bond_order_change_possible_resonance_structures(
         ncharge2 = cg.hatoms[atom_id2].ncharge
         if connection_forbidden(ncharge1, ncharge2, forbidden_bonds=forbidden_bonds):
             return []
-        if cur_min_bo + bond_order_change > max_bo(ncharge1, ncharge2):
+        if cur_min_bo + bond_order_change > max_bo_ncharges(ncharge1, ncharge2):
             return []
         if cur_min_bo == cur_max_bo:
             return [None]
@@ -802,7 +802,7 @@ def valence_bond_change_atom_possibilities(
                     resonance_structure_id=resonance_struct_id,
                 )
                 if bond_order_change > 0:
-                    if cur_bo + bond_order_change > max_bo(pres_val_ha_nc, mod_val_ha_nc):
+                    if cur_bo + bond_order_change > max_bo_ncharges(pres_val_ha_nc, mod_val_ha_nc):
                         continue
                 else:
                     if cur_bo < -bond_order_change:
@@ -909,7 +909,7 @@ def valence_bond_change_possibilities(
                 changed_sigma_bond = False
                 hydrogenated_atom_class = cg.equivalence_class((other_ha_id,))
                 if bond_order_change > 0:
-                    if cur_bo + bond_order_change > max_bo(mod_val_nc, other_nc):
+                    if cur_bo + bond_order_change > max_bo_ncharges(mod_val_nc, other_nc):
                         continue
                     if cur_bo == 0:  # we are creating a new bond.
                         changed_sigma_bond = True

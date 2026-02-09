@@ -44,7 +44,7 @@ LIGHTBLUE = (0.5, 0.5, 1.0)
 png = "PNG"
 svg = "SVG"
 pdf = "PDF"
-default_drawing_format = pdf
+default_drawing_format = png
 drawing_formats = [png, svg, pdf]
 drawing_generator = {
     png: rdMolDraw2D.MolDraw2DCairo,
@@ -419,7 +419,7 @@ class ModificationPathIllustration(ChemGraphDrawing):
         color_change_main=None,
         color_change_minor=None,
         color_change_special=None,
-        **other_image_params
+        **other_image_params,
     ):
         """
         Illustrate a modification path with simple moves as applied to a ChemGraph object.
@@ -567,7 +567,7 @@ class BeforeAfterIllustration:
         change_function,
         prefixes=["forward_", "inv_"],
         randomized_change_params=default_randomized_change_params,
-        **other_image_params
+        **other_image_params,
     ):
         """
         Create a pair of illustrations corresponding to a modification_path.
@@ -673,7 +673,7 @@ def draw_all_modification_possibilities(
     randomized_change_params=default_randomized_change_params,
     draw_pairs=True,
     dump_directory=None,
-    **kwargs
+    **kwargs,
 ):
     # Check that cg satisfies the randomized_change_params_dict
     randomized_change_params = deepcopy(randomized_change_params)
@@ -734,7 +734,7 @@ def draw_all_crossovers(
     max_num_affected_bonds=3,
     nhatoms_range=None,
     smallest_exchange_size=2,
-    **other_kwargs
+    **other_kwargs,
 ):
     init_option = 0
 
@@ -778,7 +778,7 @@ def draw_all_crossovers(
                     draw_all_possible_resonance_structures(
                         new_fragment,
                         filename_prefixes[1] + str(trial_option) + "_" + str(new_frag_id) + "_",
-                        **other_kwargs
+                        **other_kwargs,
                     )
                 trial_option += 1
             init_option += 1

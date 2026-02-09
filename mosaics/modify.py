@@ -7,7 +7,6 @@ from sortedcontainers import SortedList
 
 from .chem_graph import ChemGraph, InvalidChange, canonically_permuted_ChemGraph, str2ChemGraph
 from .chem_graph.heavy_atom import next_valence
-from .chem_graph.resonance_structures import max_bo
 from .elementary_mutations import (
     add_heavy_atom_chain,
     atom_removal_possibilities,
@@ -41,6 +40,7 @@ from .misc_procedures import (
     random_choice_from_nested_dict,
     str_atom_corr,
 )
+from .periodic import max_bo_ncharges
 
 global_step_traj_storage_label = "global"
 nonglobal_step_traj_storage_label = "local"
@@ -683,7 +683,9 @@ def get_valence_changed_atom_res_struct_list(
                         found_without_sigma_bond_alteration = True
                     full_disconnections.append(cur_full_disconnection)
             else:
-                if cur_bo + bond_order_change > max_bo(changed_val_atom_nc, pres_val_ha_nc):
+                if cur_bo + bond_order_change > max_bo_ncharges(
+                    changed_val_atom_nc, pres_val_ha_nc
+                ):
                     continue
                 if not found_without_sigma_bond_alteration:
                     found_without_sigma_bond_alteration = are_neighbors
